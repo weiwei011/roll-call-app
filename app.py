@@ -8,7 +8,7 @@ import time
 # ==========================================
 # 🔐 安全登入系統
 # ==========================================
-LOGIN_PASSWORD = "你的部隊專用密碼" # <--- 記得改密碼
+LOGIN_PASSWORD = "你的部隊專用密碼" # <--- 記得修改密碼
 
 def check_password():
     """密碼檢查機制"""
@@ -63,7 +63,7 @@ st.markdown("""
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 這是預設名單，只有當「資料庫完全被清空」時才會用來救援
+# 預設名單 (僅用於初始化)
 DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
     {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
@@ -143,7 +143,7 @@ def save_data(df):
     except Exception as e:
         st.error(f"寫入失敗: {e}")
 
-# 載入資料 (現在這裡是唯一的資料來源)
+# 載入資料
 raw_df = load_data()
 
 # ==========================================
@@ -169,7 +169,6 @@ with st.sidebar:
                             "Category": new_cat, "Name": new_name, "Tag": new_tag,
                             "Incident_Reason": "", "Start_Time": "", "End_Time": ""
                         }])
-                        # 將新人加入名單
                         raw_df = pd.concat([raw_df, new_row], ignore_index=True)
                         save_data(raw_df)
                         st.success(f"已新增 {new_name}")
@@ -181,7 +180,6 @@ with st.sidebar:
     st.divider()
     st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
     
-    # 強制重置 (保留救命用)
     with st.expander("🔴 危險操作"):
         if st.button("⚠️ 重置回預設名單"):
             default_df = pd.DataFrame(DEFAULT_ROSTER)
@@ -312,7 +310,6 @@ with tab1:
                     save_data(raw_df)
                     st.rerun()
                 
-                # 🔴 刪除按鈕回來了！現在它是真的刪除雲端資料！
                 if c2.button("🗑️ 刪除", key=f"del_{row['Name']}", type="primary", use_container_width=True):
                     raw_df = raw_df[raw_df['Name'] != row['Name']]
                     save_data(raw_df)
