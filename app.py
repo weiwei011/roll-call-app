@@ -8,11 +8,10 @@ import time
 # ==========================================
 # 🔐 安全登入系統
 # ==========================================
-# 請設定你的密碼
-LOGIN_PASSWORD = "1234"
+LOGIN_PASSWORD = "你的部隊專用密碼" # <--- 記得改密碼
 
 def check_password():
-    """Returns `True` if the user had a correct password."""
+    """密碼檢查機制"""
     def password_entered():
         if st.session_state["password"] == LOGIN_PASSWORD:
             st.session_state["password_correct"] = True
@@ -31,11 +30,10 @@ def check_password():
         return True
 
 # ==========================================
-# 1. 頁面與樣式設定
+# 1. 頁面設定
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-# 啟動密碼檢查
 if not check_password():
     st.stop()
 
@@ -48,31 +46,28 @@ st.markdown("""
         background-color: #333538; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         border: 1px solid #454545; transition: transform 0.2s;
     }
-    .person-card:hover { transform: translateY(-2px); border-color: #666; }
     .status-camp { border-left: 6px solid #a5d6a7; }
     .status-leave { border-left: 6px solid #ffcc80; }
     .card-header { display: flex; justify-content: space-between; align-items: center; }
-    .card-name { font-size: 1.3rem; font-weight: 600; color: #fff; letter-spacing: 1px; }
-    .card-details { font-size: 0.95rem; color: #bbb; margin-top: 4px; }
+    .card-name { font-size: 1.3rem; font-weight: 600; color: #fff; }
     .tag-badge { 
         font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; 
-        background-color: #4a4d52; color: #ddd; margin-left: 8px; vertical-align: middle;
+        background-color: #4a4d52; color: #ddd; margin-left: 8px;
     }
-    #MainMenu {visibility: hidden;} header {visibility: hidden;}
     .stButton button { border-radius: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 固定的內建名單 (這裡是核心！)
+# 2. 資料庫核心
 # ==========================================
-# 這是你的固定底稿，不管資料庫有沒有壞掉，這些人都會出現
-FIXED_ROSTER = [
-    # 官員
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# 這是預設名單，只有當「資料庫完全被清空」時才會用來救援
+DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
     {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
     {"Category": "官員", "Name": "馬翔麟", "Tag": "宿"},
-    # 左班
     {"Category": "左班", "Name": "卓士傑", "Tag": "宿"},
     {"Category": "左班", "Name": "呂培民", "Tag": "散"},
     {"Category": "左班", "Name": "廖友智", "Tag": "散"},
@@ -90,7 +85,6 @@ FIXED_ROSTER = [
     {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
     {"Category": "左班", "Name": "溫亞晉", "Tag": "宿"},
     {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
-    # 右班
     {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
     {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
     {"Category": "右班", "Name": "陳泰均", "Tag": "宿"},
@@ -109,17 +103,11 @@ FIXED_ROSTER = [
     {"Category": "右班", "Name": "湯恩宇", "Tag": "散"},
     {"Category": "右班", "Name": "詹燦宇", "Tag": "散"},
     {"Category": "右班", "Name": "伍諾亞", "Tag": "散"},
-    # 義務役
     {"Category": "義務役", "Name": "林子祥", "Tag": "散"},
     {"Category": "義務役", "Name": "張育勝", "Tag": "散"},
     {"Category": "義務役", "Name": "夏文凱", "Tag": "散"},
     {"Category": "義務役", "Name": "張朕中", "Tag": "散"},
 ]
-
-# ==========================================
-# 3. 資料庫連線與混合邏輯
-# ==========================================
-conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_taiwan_time():
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
@@ -131,73 +119,76 @@ def get_greeting():
     elif 18 <= hour < 22: return "晚安，辛苦了！🌙"
     else: return "夜深了，注意保暖喔！✨"
 
-def load_and_merge_data():
-    """
-    這是一段很強的邏輯：
-    1. 建立一份「完美的名單」(base_df)
-    2. 嘗試去雲端抓「誰請假」 (cloud_df)
-    3. 把請假資訊貼到名單上，如果雲端壞掉，至少名單還在。
-    """
-    # 1. 建立基底 (一定會有資料)
-    base_df = pd.DataFrame(FIXED_ROSTER)
-    # 確保必要欄位存在
-    for col in ["Incident_Reason", "Start_Time", "End_Time"]:
-        base_df[col] = ""
-
-    # 2. 嘗試讀取雲端
+def load_data():
+    """完全從雲端讀取，如果是空的，自動補上預設名單"""
     try:
-        cloud_df = conn.read(worksheet="Sheet1", ttl=0)
-        
-        # 如果雲端有資料，我們就進行「合併 (Merge)」
-        if cloud_df is not None and not cloud_df.empty and "Name" in cloud_df.columns:
-            # 只取需要的欄位，避免欄位混亂
-            cols_to_merge = ["Name", "Incident_Reason", "Start_Time", "End_Time"]
-            # 過濾掉雲端裡沒有這些欄位的狀況
-            available_cols = [c for c in cols_to_merge if c in cloud_df.columns]
-            cloud_subset = cloud_df[available_cols].copy()
-            
-            # 刪除基底的空欄位，準備覆蓋
-            base_df = base_df.drop(columns=["Incident_Reason", "Start_Time", "End_Time"], errors="ignore")
-            
-            # 合併：以 Name 為準，把雲端的狀態貼過來
-            # how='left' 代表：保留左邊(名單)的所有人，如果雲端沒這個人，就留白
-            merged_df = pd.merge(base_df, cloud_subset, on="Name", how="left")
-            return merged_df.fillna("")
-            
+        df = conn.read(worksheet="Sheet1", ttl=0)
+        # 如果雲端是空的，或沒有 Name 欄位，就進行初始化
+        if df is None or df.empty or "Name" not in df.columns:
+            st.warning("⚠️ 偵測到資料庫為空，正在進行初始化...")
+            init_df = pd.DataFrame(DEFAULT_ROSTER)
+            for col in ["Incident_Reason", "Start_Time", "End_Time"]:
+                init_df[col] = ""
+            conn.update(worksheet="Sheet1", data=init_df)
+            return init_df
+        return df.fillna("")
     except Exception as e:
-        st.warning(f"⚠️ 無法讀取雲端假單，目前顯示預設名單 (錯誤: {e})")
-    
-    return base_df
+        st.error(f"⚠️ 資料庫連線失敗: {e}")
+        return pd.DataFrame()
 
 def save_data(df):
     try:
         conn.update(worksheet="Sheet1", data=df)
-        st.toast("✅ 資料已雲端同步", icon="☁️")
+        st.toast("✅ 資料庫已更新", icon="☁️")
     except Exception as e:
         st.error(f"寫入失敗: {e}")
 
-# 🚀 執行讀取 (不管怎樣，這裡一定會回傳一個滿滿的名單)
-raw_df = load_and_merge_data()
+# 載入資料 (現在這裡是唯一的資料來源)
+raw_df = load_data()
 
 # ==========================================
-# 4. 側邊欄與核心邏輯
+# 3. 側邊欄 (新增人員功能在此)
 # ==========================================
 with st.sidebar:
-    st.title("⚙️ 系統管理")
+    st.title("⚙️ 人員管理")
     st.write(f"時間：{get_taiwan_time().strftime('%H:%M')}")
     st.divider()
+
+    # --- 新增人員區塊 ---
+    with st.expander("➕ 新增人員", expanded=False):
+        with st.form("add_person_form"):
+            new_cat = st.selectbox("類別", ["官員", "左班", "右班", "義務役"])
+            new_name = st.text_input("姓名 (必填)")
+            new_tag = st.selectbox("標籤", ["宿", "散", "無"])
+            if st.form_submit_button("確認新增"):
+                if new_name:
+                    if new_name in raw_df['Name'].values:
+                        st.error("此姓名已存在！")
+                    else:
+                        new_row = pd.DataFrame([{
+                            "Category": new_cat, "Name": new_name, "Tag": new_tag,
+                            "Incident_Reason": "", "Start_Time": "", "End_Time": ""
+                        }])
+                        # 將新人加入名單
+                        raw_df = pd.concat([raw_df, new_row], ignore_index=True)
+                        save_data(raw_df)
+                        st.success(f"已新增 {new_name}")
+                        time.sleep(1)
+                        st.rerun()
+                else:
+                    st.error("請輸入姓名")
     
-    # 強制重置按鈕 (如果雲端真的爛掉了，可以用這個修復)
-    if st.button("⚠️ 強制重寫雲端資料庫"):
-        default_df = pd.DataFrame(FIXED_ROSTER)
-        for col in ["Incident_Reason", "Start_Time", "End_Time"]:
-            default_df[col] = ""
-        save_data(default_df)
-        st.success("已強制用內建名單覆蓋雲端！")
-        time.sleep(1)
-        st.rerun()
-        
+    st.divider()
     st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
+    
+    # 強制重置 (保留救命用)
+    with st.expander("🔴 危險操作"):
+        if st.button("⚠️ 重置回預設名單"):
+            default_df = pd.DataFrame(DEFAULT_ROSTER)
+            for col in ["Incident_Reason", "Start_Time", "End_Time"]:
+                default_df[col] = ""
+            save_data(default_df)
+            st.rerun()
 
 def check_status_row(row):
     now = get_taiwan_time()
@@ -270,7 +261,7 @@ def parse_batch_input(text_input, current_df):
     return current_df, updated_count
 
 # ==========================================
-# 5. 主頁面
+# 4. 主頁面顯示
 # ==========================================
 st.title(get_greeting())
 tab1, tab2 = st.tabs(["📋 點名簿", "📝 批次作業"])
@@ -299,7 +290,7 @@ with tab1:
         for i, row in group_df.iterrows():
             status_code, reason, status_text = check_status_row(row)
             css_class = "status-leave" if status_code == "leave" else "status-camp"
-            tag_str = f'<span class="tag-badge">{row["Tag"]}</span>' if row['Tag'] != '無' else ''
+            tag_str = f'<span class="tag-badge">{row["Tag"]}</span>' if row.get('Tag') else ''
             
             st.markdown(f"""
             <div class="person-card {css_class}">
@@ -320,9 +311,14 @@ with tab1:
                     raw_df.at[real_idx, 'End_Time'] = ""
                     save_data(raw_df)
                     st.rerun()
-                # 因為名單是內建的，我們隱藏刪除按鈕，避免混亂
-                if c2.button("刪除 (雲端)", key=f"del_{row['Name']}", type="primary", use_container_width=True):
-                     st.toast("內建名單無法完全刪除，僅能清空雲端紀錄")
+                
+                # 🔴 刪除按鈕回來了！現在它是真的刪除雲端資料！
+                if c2.button("🗑️ 刪除", key=f"del_{row['Name']}", type="primary", use_container_width=True):
+                    raw_df = raw_df[raw_df['Name'] != row['Name']]
+                    save_data(raw_df)
+                    st.success(f"已刪除 {row['Name']}")
+                    time.sleep(1)
+                    st.rerun()
 
 with tab2:
     st.info("貼上假單範例：卓士傑 11/20 1800 - 11/21 0730")
