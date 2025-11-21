@@ -6,9 +6,41 @@ import re
 import time
 
 # ==========================================
+# 🔐 安全登入系統 (新增功能)
+# ==========================================
+# 設定你的登入密碼 (請修改這裡的 123456)
+LOGIN_PASSWORD = "你的部隊專用密碼"
+
+def check_password():
+    """Returns `True` if the user had a correct password."""
+    def password_entered():
+        if st.session_state["password"] == LOGIN_PASSWORD:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password.
+        st.text_input("🔒 請輸入通行碼", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password incorrect, show input again.
+        st.text_input("🔒 請輸入通行碼", type="password", on_change=password_entered, key="password")
+        st.error("🚫 密碼錯誤")
+        return False
+    else:
+        # Password correct.
+        return True
+
+# ==========================================
 # 1. 頁面與樣式設定
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
+
+# ⚠️ 啟動密碼檢查！如果密碼不對，程式就會停在這裡，不會往下執行
+if not check_password():
+    st.stop()
 
 st.markdown("""
     <style>
@@ -34,6 +66,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ... (以下內容保持不變，從 conn = st.connection... 開始)
 # ==========================================
 # 2. 資料庫連線與基礎函式
 # ==========================================
