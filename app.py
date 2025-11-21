@@ -6,31 +6,28 @@ import re
 import time
 
 # ==========================================
-# 🔐 安全登入系統 (新增功能)
+# 🔐 安全登入系統
 # ==========================================
-# 設定你的登入密碼 (請修改這裡的 123456)
-LOGIN_PASSWORD = "125125"
+# 請設定你的密碼
+LOGIN_PASSWORD = "你的部隊專用密碼"
 
 def check_password():
     """Returns `True` if the user had a correct password."""
     def password_entered():
         if st.session_state["password"] == LOGIN_PASSWORD:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # First run, show input for password.
         st.text_input("🔒 請輸入通行碼", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        # Password incorrect, show input again.
         st.text_input("🔒 請輸入通行碼", type="password", on_change=password_entered, key="password")
         st.error("🚫 密碼錯誤")
         return False
     else:
-        # Password correct.
         return True
 
 # ==========================================
@@ -38,7 +35,7 @@ def check_password():
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-# ⚠️ 啟動密碼檢查！如果密碼不對，程式就會停在這裡，不會往下執行
+# 啟動密碼檢查
 if not check_password():
     st.stop()
 
@@ -66,9 +63,61 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ... (以下內容保持不變，從 conn = st.connection... 開始)
 # ==========================================
-# 2. 資料庫連線與基礎函式
+# 2. 固定的內建名單 (這裡是核心！)
+# ==========================================
+# 這是你的固定底稿，不管資料庫有沒有壞掉，這些人都會出現
+FIXED_ROSTER = [
+    # 官員
+    {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
+    {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
+    {"Category": "官員", "Name": "馬翔麟", "Tag": "宿"},
+    # 左班
+    {"Category": "左班", "Name": "卓士傑", "Tag": "宿"},
+    {"Category": "左班", "Name": "呂培民", "Tag": "散"},
+    {"Category": "左班", "Name": "廖友智", "Tag": "散"},
+    {"Category": "左班", "Name": "陳怡民", "Tag": "宿"},
+    {"Category": "左班", "Name": "洪靚茜", "Tag": "散"},
+    {"Category": "左班", "Name": "吳枚芷", "Tag": "宿"},
+    {"Category": "左班", "Name": "莊沛倫", "Tag": "宿"},
+    {"Category": "左班", "Name": "李沿諭", "Tag": "宿"},
+    {"Category": "左班", "Name": "簡俊昇", "Tag": "宿"},
+    {"Category": "左班", "Name": "林冠中", "Tag": "宿"},
+    {"Category": "左班", "Name": "范曉萱", "Tag": "散"},
+    {"Category": "左班", "Name": "劉頂昱", "Tag": "宿"},
+    {"Category": "左班", "Name": "劉正誼", "Tag": "宿"},
+    {"Category": "左班", "Name": "林佳玄", "Tag": "散"},
+    {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
+    {"Category": "左班", "Name": "溫亞晉", "Tag": "宿"},
+    {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
+    # 右班
+    {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
+    {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
+    {"Category": "右班", "Name": "陳泰均", "Tag": "宿"},
+    {"Category": "右班", "Name": "蔡宗穎", "Tag": "宿"},
+    {"Category": "右班", "Name": "黃泰洪", "Tag": "宿"},
+    {"Category": "右班", "Name": "蔡詩濡", "Tag": "宿"},
+    {"Category": "右班", "Name": "羅榆秀", "Tag": "宿"},
+    {"Category": "右班", "Name": "李意婷", "Tag": "宿"},
+    {"Category": "右班", "Name": "湯頂瑤", "Tag": "散"},
+    {"Category": "右班", "Name": "曾夢婷", "Tag": "宿"},
+    {"Category": "右班", "Name": "姜富議", "Tag": "宿"},
+    {"Category": "右班", "Name": "毛品堯", "Tag": "散"},
+    {"Category": "右班", "Name": "林興良", "Tag": "散"},
+    {"Category": "右班", "Name": "傅奕翔", "Tag": "宿"},
+    {"Category": "右班", "Name": "韓政叡", "Tag": "宿"},
+    {"Category": "右班", "Name": "湯恩宇", "Tag": "散"},
+    {"Category": "右班", "Name": "詹燦宇", "Tag": "散"},
+    {"Category": "右班", "Name": "伍諾亞", "Tag": "散"},
+    # 義務役
+    {"Category": "義務役", "Name": "林子祥", "Tag": "散"},
+    {"Category": "義務役", "Name": "張育勝", "Tag": "散"},
+    {"Category": "義務役", "Name": "夏文凱", "Tag": "散"},
+    {"Category": "義務役", "Name": "張朕中", "Tag": "散"},
+]
+
+# ==========================================
+# 3. 資料庫連線與混合邏輯
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -82,13 +131,43 @@ def get_greeting():
     elif 18 <= hour < 22: return "晚安，辛苦了！🌙"
     else: return "夜深了，注意保暖喔！✨"
 
-def load_data():
+def load_and_merge_data():
+    """
+    這是一段很強的邏輯：
+    1. 建立一份「完美的名單」(base_df)
+    2. 嘗試去雲端抓「誰請假」 (cloud_df)
+    3. 把請假資訊貼到名單上，如果雲端壞掉，至少名單還在。
+    """
+    # 1. 建立基底 (一定會有資料)
+    base_df = pd.DataFrame(FIXED_ROSTER)
+    # 確保必要欄位存在
+    for col in ["Incident_Reason", "Start_Time", "End_Time"]:
+        base_df[col] = ""
+
+    # 2. 嘗試讀取雲端
     try:
-        df = conn.read(worksheet="Sheet1", ttl=0)
-        return df
+        cloud_df = conn.read(worksheet="Sheet1", ttl=0)
+        
+        # 如果雲端有資料，我們就進行「合併 (Merge)」
+        if cloud_df is not None and not cloud_df.empty and "Name" in cloud_df.columns:
+            # 只取需要的欄位，避免欄位混亂
+            cols_to_merge = ["Name", "Incident_Reason", "Start_Time", "End_Time"]
+            # 過濾掉雲端裡沒有這些欄位的狀況
+            available_cols = [c for c in cols_to_merge if c in cloud_df.columns]
+            cloud_subset = cloud_df[available_cols].copy()
+            
+            # 刪除基底的空欄位，準備覆蓋
+            base_df = base_df.drop(columns=["Incident_Reason", "Start_Time", "End_Time"], errors="ignore")
+            
+            # 合併：以 Name 為準，把雲端的狀態貼過來
+            # how='left' 代表：保留左邊(名單)的所有人，如果雲端沒這個人，就留白
+            merged_df = pd.merge(base_df, cloud_subset, on="Name", how="left")
+            return merged_df.fillna("")
+            
     except Exception as e:
-        st.error(f"⚠️ 資料庫讀取錯誤: {e}")
-        return pd.DataFrame()
+        st.warning(f"⚠️ 無法讀取雲端假單，目前顯示預設名單 (錯誤: {e})")
+    
+    return base_df
 
 def save_data(df):
     try:
@@ -97,81 +176,8 @@ def save_data(df):
     except Exception as e:
         st.error(f"寫入失敗: {e}")
 
-# 載入資料
-raw_df = load_data()
-
-# ==========================================
-# 3. 自動初始化 (將你的名單內建於此)
-# ==========================================
-# 如果資料庫是空的 (或沒有 Name 欄位)，就會執行這一段
-if raw_df is None or raw_df.empty or "Name" not in raw_df.columns:
-    st.warning("偵測到資料庫為空，正在寫入完整部隊名單，請稍候...")
-    
-    # 這裡是你剛剛提供的完整名單
-    initial_roster = [
-        # 官員
-        {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
-        {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
-        {"Category": "官員", "Name": "馬翔麟", "Tag": "宿"},
-        # 左班
-        {"Category": "左班", "Name": "卓士傑", "Tag": "宿"},
-        {"Category": "左班", "Name": "呂培民", "Tag": "散"},
-        {"Category": "左班", "Name": "廖友智", "Tag": "散"},
-        {"Category": "左班", "Name": "陳怡民", "Tag": "宿"},
-        {"Category": "左班", "Name": "洪靚茜", "Tag": "散"},
-        {"Category": "左班", "Name": "吳枚芷", "Tag": "宿"},
-        {"Category": "左班", "Name": "莊沛倫", "Tag": "宿"},
-        {"Category": "左班", "Name": "李沿諭", "Tag": "宿"},
-        {"Category": "左班", "Name": "簡俊昇", "Tag": "宿"},
-        {"Category": "左班", "Name": "林冠中", "Tag": "宿"},
-        {"Category": "左班", "Name": "范曉萱", "Tag": "散"},
-        {"Category": "左班", "Name": "劉頂昱", "Tag": "宿"},
-        {"Category": "左班", "Name": "劉正誼", "Tag": "宿"},
-        {"Category": "左班", "Name": "林佳玄", "Tag": "散"},
-        {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
-        {"Category": "左班", "Name": "溫亞晉", "Tag": "宿"},
-        {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
-        # 右班
-        {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
-        {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
-        {"Category": "右班", "Name": "陳泰均", "Tag": "宿"},
-        {"Category": "右班", "Name": "蔡宗穎", "Tag": "宿"},
-        {"Category": "右班", "Name": "黃泰洪", "Tag": "宿"},
-        {"Category": "右班", "Name": "蔡詩濡", "Tag": "宿"},
-        {"Category": "右班", "Name": "羅榆秀", "Tag": "宿"},
-        {"Category": "右班", "Name": "李意婷", "Tag": "宿"},
-        {"Category": "右班", "Name": "湯頂瑤", "Tag": "散"},
-        {"Category": "右班", "Name": "曾夢婷", "Tag": "宿"},
-        {"Category": "右班", "Name": "姜富議", "Tag": "宿"},
-        {"Category": "右班", "Name": "毛品堯", "Tag": "散"},
-        {"Category": "右班", "Name": "林興良", "Tag": "散"},
-        {"Category": "右班", "Name": "傅奕翔", "Tag": "宿"},
-        {"Category": "右班", "Name": "韓政叡", "Tag": "宿"},
-        {"Category": "右班", "Name": "湯恩宇", "Tag": "散"},
-        {"Category": "右班", "Name": "詹燦宇", "Tag": "散"},
-        {"Category": "右班", "Name": "伍諾亞", "Tag": "散"},
-        # 義務役
-        {"Category": "義務役", "Name": "林子祥", "Tag": "散"},
-        {"Category": "義務役", "Name": "張育勝", "Tag": "散"},
-        {"Category": "義務役", "Name": "夏文凱", "Tag": "散"},
-        {"Category": "義務役", "Name": "張朕中", "Tag": "散"},
-    ]
-    
-    raw_df = pd.DataFrame(initial_roster)
-    # 補上時間欄位
-    for col in ["Incident_Reason", "Start_Time", "End_Time"]:
-        raw_df[col] = ""
-        
-    save_data(raw_df)
-    st.success("名單建立完成！正在重整頁面...")
-    time.sleep(2)
-    st.rerun()
-
-# 欄位檢查與補全 (防止崩潰)
-required_cols = ["Category", "Name", "Tag", "Incident_Reason", "Start_Time", "End_Time"]
-for col in required_cols:
-    if col not in raw_df.columns: raw_df[col] = ""
-raw_df = raw_df.fillna("")
+# 🚀 執行讀取 (不管怎樣，這裡一定會回傳一個滿滿的名單)
+raw_df = load_and_merge_data()
 
 # ==========================================
 # 4. 側邊欄與核心邏輯
@@ -180,24 +186,22 @@ with st.sidebar:
     st.title("⚙️ 系統管理")
     st.write(f"時間：{get_taiwan_time().strftime('%H:%M')}")
     st.divider()
-    st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
     
-    uploaded_file = st.file_uploader("匯入舊資料", type=["csv"])
-    if uploaded_file and st.button("確認還原"):
-        try:
-            uploaded_df = pd.read_csv(uploaded_file).fillna("")
-            save_data(uploaded_df)
-            st.rerun()
-        except: st.error("格式錯誤")
-
-    with st.expander("🛑 刪除所有資料"):
-        if st.button("確認清空"):
-            save_data(pd.DataFrame(columns=required_cols))
-            st.rerun()
+    # 強制重置按鈕 (如果雲端真的爛掉了，可以用這個修復)
+    if st.button("⚠️ 強制重寫雲端資料庫"):
+        default_df = pd.DataFrame(FIXED_ROSTER)
+        for col in ["Incident_Reason", "Start_Time", "End_Time"]:
+            default_df[col] = ""
+        save_data(default_df)
+        st.success("已強制用內建名單覆蓋雲端！")
+        time.sleep(1)
+        st.rerun()
+        
+    st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
 
 def check_status_row(row):
     now = get_taiwan_time()
-    reason, start_str, end_str = str(row['Incident_Reason']).strip(), str(row['Start_Time']).strip(), str(row['End_Time']).strip()
+    reason, start_str, end_str = str(row.get('Incident_Reason', '')).strip(), str(row.get('Start_Time', '')).strip(), str(row.get('End_Time', '')).strip()
     if not reason or not start_str or not end_str: return "camp", "在營", "🟢 在營"
     try:
         start = datetime.datetime.fromisoformat(start_str)
@@ -228,7 +232,6 @@ def parse_batch_input(text_input, current_df):
         if not found_name: continue
 
         try:
-            # 格式 11/20 1600
             pattern = r"(\d{1,2})[./](\d{1,2})\s+(\d{4})\s*[-~至]?\s*(\d{1,2})[./](\d{1,2})\s+(\d{4})"
             match = re.search(pattern, line)
             start_dt, end_dt = None, None
@@ -286,7 +289,6 @@ with tab1:
     st.progress((total_should - current_absent) / total_should if total_should > 0 else 0)
     st.caption(f"實到: {total_should - current_absent} / 應到: {total_should} (休假: {current_absent})")
 
-    # 依照你的要求排序類別：官員 -> 左班 -> 右班 -> 義務役
     cats = ["官員", "左班", "右班", "義務役"]
     
     for category in cats:
@@ -318,10 +320,9 @@ with tab1:
                     raw_df.at[real_idx, 'End_Time'] = ""
                     save_data(raw_df)
                     st.rerun()
-                if c2.button("刪除", key=f"del_{row['Name']}", type="primary", use_container_width=True):
-                    raw_df = raw_df[raw_df['Name'] != row['Name']]
-                    save_data(raw_df)
-                    st.rerun()
+                # 因為名單是內建的，我們隱藏刪除按鈕，避免混亂
+                if c2.button("刪除 (雲端)", key=f"del_{row['Name']}", type="primary", use_container_width=True):
+                     st.toast("內建名單無法完全刪除，僅能清空雲端紀錄")
 
 with tab2:
     st.info("貼上假單範例：卓士傑 11/20 1800 - 11/21 0730")
