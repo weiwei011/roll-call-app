@@ -9,7 +9,7 @@ import time
 # 🔐 安全登入系統
 # ==========================================
 # 請設定你的密碼
-LOGIN_PASSWORD = "你的部隊專用密碼"
+LOGIN_PASSWORD = "1234"
 
 def check_password():
     """Returns `True` if the user had a correct password."""
