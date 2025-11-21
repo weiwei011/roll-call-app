@@ -8,7 +8,7 @@ import time
 # ==========================================
 # 🔐 安全登入系統
 # ==========================================
-LOGIN_PASSWORD = "1234" # <--- 記得修改密碼
+LOGIN_PASSWORD = "你的部隊專用密碼" # <--- 記得修改密碼
 
 def check_password():
     """密碼檢查機制"""
@@ -59,11 +59,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 資料庫核心
+# 2. 資料庫核心 (這裡有重大升級！)
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 預設名單 (僅用於初始化)
+# 預設名單
 DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
     {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
@@ -120,21 +120,30 @@ def get_greeting():
     else: return "夜深了，注意保暖喔！✨"
 
 def load_data():
-    """完全從雲端讀取，如果是空的，自動補上預設名單"""
+    """
+    這個函式經過強化，具備自我修復功能。
+    如果發現雲端資料缺了 'Category' 或 'Name' 這些重要欄位，
+    它不會報錯，而是會自動把預設名單填回去修好它。
+    """
     try:
         df = conn.read(worksheet="Sheet1", ttl=0)
-        # 如果雲端是空的，或沒有 Name 欄位，就進行初始化
-        if df is None or df.empty or "Name" not in df.columns:
-            st.warning("⚠️ 偵測到資料庫為空，正在進行初始化...")
+        
+        # 🚨 關鍵修復點：檢查欄位是否齊全
+        # 如果是空的，或者缺了 Category，或者缺了 Name，就視為「壞掉」
+        if df is None or df.empty or "Category" not in df.columns or "Name" not in df.columns:
+            st.warning("⚠️ 偵測到雲端資料異常，正在自我修復中...")
             init_df = pd.DataFrame(DEFAULT_ROSTER)
             for col in ["Incident_Reason", "Start_Time", "End_Time"]:
                 init_df[col] = ""
             conn.update(worksheet="Sheet1", data=init_df)
-            return init_df
+            return init_df # 回傳修好的資料
+            
         return df.fillna("")
     except Exception as e:
+        # 萬一連不上線，回傳空表，避免程式整個掛掉
         st.error(f"⚠️ 資料庫連線失敗: {e}")
-        return pd.DataFrame()
+        # 回傳一個緊急的空 DataFrame，至少讓頁面能跑，雖然是白的
+        return pd.DataFrame(columns=["Category", "Name", "Tag", "Incident_Reason", "Start_Time", "End_Time"])
 
 def save_data(df):
     try:
@@ -162,7 +171,7 @@ with st.sidebar:
             new_tag = st.selectbox("標籤", ["宿", "散", "無"])
             if st.form_submit_button("確認新增"):
                 if new_name:
-                    if new_name in raw_df['Name'].values:
+                    if "Name" in raw_df.columns and new_name in raw_df['Name'].values:
                         st.error("此姓名已存在！")
                     else:
                         new_row = pd.DataFrame([{
@@ -178,7 +187,10 @@ with st.sidebar:
                     st.error("請輸入姓名")
     
     st.divider()
-    st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
+    
+    # 防止 raw_df 為空時下載按鈕報錯
+    if not raw_df.empty:
+        st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
     
     with st.expander("🔴 危險操作"):
         if st.button("⚠️ 重置回預設名單"):
@@ -205,6 +217,7 @@ def check_status_row(row):
     return "camp", "在營", "🟢 在營"
 
 def parse_batch_input(text_input, current_df):
+    if current_df.empty: return current_df, 0
     lines = text_input.strip().split('\n')
     updated_count = 0
     now = get_taiwan_time()
@@ -270,62 +283,73 @@ with tab1:
         st.cache_data.clear()
         st.rerun()
         
-    total_should = len(raw_df)
-    current_absent = 0
-    for _, row in raw_df.iterrows():
-        if check_status_row(row)[0] == "leave": current_absent += 1
+    if raw_df.empty:
+        st.warning("目前沒有資料，請檢查雲端連線或按下側邊欄的重置按鈕。")
+    else:
+        total_should = len(raw_df)
+        current_absent = 0
+        for _, row in raw_df.iterrows():
+            if check_status_row(row)[0] == "leave": current_absent += 1
 
-    st.progress((total_should - current_absent) / total_should if total_should > 0 else 0)
-    st.caption(f"實到: {total_should - current_absent} / 應到: {total_should} (休假: {current_absent})")
+        st.progress((total_should - current_absent) / total_should if total_should > 0 else 0)
+        st.caption(f"實到: {total_should - current_absent} / 應到: {total_should} (休假: {current_absent})")
 
-    cats = ["官員", "左班", "右班", "義務役"]
-    
-    for category in cats:
-        group_df = raw_df[raw_df['Category'] == category]
-        if group_df.empty: continue
+        cats = ["官員", "左班", "右班", "義務役"]
         
-        st.subheader(f"🔹 {category}")
-        for i, row in group_df.iterrows():
-            status_code, reason, status_text = check_status_row(row)
-            css_class = "status-leave" if status_code == "leave" else "status-camp"
-            tag_str = f'<span class="tag-badge">{row["Tag"]}</span>' if row.get('Tag') else ''
-            
-            st.markdown(f"""
-            <div class="person-card {css_class}">
-                <div class="card-header">
-                    <div class="card-name">{row['Name']} {tag_str}</div>
-                    <div style="font-size:1.2rem;">{'🏠' if status_code=='leave' else '🌲'}</div>
-                </div>
-                <div class="card-details">{status_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            with st.expander(f"⚙️ 管理 {row['Name']}"):
-                c1, c2 = st.columns(2)
-                if c1.button("歸隊", key=f"cls_{row['Name']}", use_container_width=True):
-                    real_idx = raw_df[raw_df['Name'] == row['Name']].index[0]
-                    raw_df.at[real_idx, 'Incident_Reason'] = ""
-                    raw_df.at[real_idx, 'Start_Time'] = ""
-                    raw_df.at[real_idx, 'End_Time'] = ""
-                    save_data(raw_df)
-                    st.rerun()
+        for category in cats:
+            # 這裡就是原本報錯的地方，現在加上了檢查機制
+            if "Category" in raw_df.columns:
+                group_df = raw_df[raw_df['Category'] == category]
+            else:
+                group_df = pd.DataFrame() # 避免報錯
                 
-                if c2.button("🗑️ 刪除", key=f"del_{row['Name']}", type="primary", use_container_width=True):
-                    raw_df = raw_df[raw_df['Name'] != row['Name']]
-                    save_data(raw_df)
-                    st.success(f"已刪除 {row['Name']}")
-                    time.sleep(1)
-                    st.rerun()
+            if group_df.empty: continue
+            
+            st.subheader(f"🔹 {category}")
+            for i, row in group_df.iterrows():
+                status_code, reason, status_text = check_status_row(row)
+                css_class = "status-leave" if status_code == "leave" else "status-camp"
+                tag_str = f'<span class="tag-badge">{row["Tag"]}</span>' if row.get('Tag') else ''
+                
+                st.markdown(f"""
+                <div class="person-card {css_class}">
+                    <div class="card-header">
+                        <div class="card-name">{row['Name']} {tag_str}</div>
+                        <div style="font-size:1.2rem;">{'🏠' if status_code=='leave' else '🌲'}</div>
+                    </div>
+                    <div class="card-details">{status_text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                with st.expander(f"⚙️ 管理 {row['Name']}"):
+                    c1, c2 = st.columns(2)
+                    if c1.button("歸隊", key=f"cls_{row['Name']}", use_container_width=True):
+                        real_idx = raw_df[raw_df['Name'] == row['Name']].index[0]
+                        raw_df.at[real_idx, 'Incident_Reason'] = ""
+                        raw_df.at[real_idx, 'Start_Time'] = ""
+                        raw_df.at[real_idx, 'End_Time'] = ""
+                        save_data(raw_df)
+                        st.rerun()
+                    
+                    if c2.button("🗑️ 刪除", key=f"del_{row['Name']}", type="primary", use_container_width=True):
+                        raw_df = raw_df[raw_df['Name'] != row['Name']]
+                        save_data(raw_df)
+                        st.success(f"已刪除 {row['Name']}")
+                        time.sleep(1)
+                        st.rerun()
 
 with tab2:
     st.info("貼上假單範例：卓士傑 11/20 1800 - 11/21 0730")
     batch_text = st.text_area("假單內容", height=150)
     if st.button("🚀 更新假單", type="primary", use_container_width=True):
-        new_df, count = parse_batch_input(batch_text, raw_df.copy())
-        if count > 0:
-            save_data(new_df)
-            st.success(f"成功更新 {count} 筆！")
-            time.sleep(1)
-            st.rerun()
+        if raw_df.empty:
+            st.error("資料庫為空，無法更新")
         else:
-            st.error("無資料更新，請檢查姓名或格式")
+            new_df, count = parse_batch_input(batch_text, raw_df.copy())
+            if count > 0:
+                save_data(new_df)
+                st.success(f"成功更新 {count} 筆！")
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("無資料更新，請檢查姓名或格式")
