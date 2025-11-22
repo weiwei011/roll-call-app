@@ -34,13 +34,13 @@ def check_password():
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-# ✨ CSS 更新：暖色調夜間模式 (Warm Dark Theme)
+# ✨ CSS 更新：針對「按鈕」與「箭頭」做高對比強化
 st.markdown("""
     <style>
-    /* 1. 全局背景：深暖褐 (像濃縮咖啡)，不發藍光 */
+    /* 1. 全局背景 */
     .stApp { background-color: #1C1B1A; color: #E3DED5; }
     
-    /* 2. 側邊欄：深巧克力色 */
+    /* 2. 側邊欄 */
     section[data-testid="stSidebar"] {
         background-color: #23201D !important;
         border-right: 1px solid #3E3935;
@@ -50,19 +50,19 @@ st.markdown("""
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] label, 
     section[data-testid="stSidebar"] .stMarkdown {
-        color: #C2B8AD !important; /* 暖灰色文字 */
+        color: #E0E0E0 !important; /* 文字調亮 */
     }
     
-    /* 3. 輸入框優化：深褐底 + 乳霜字 */
+    /* 3. 輸入框優化 */
     div[data-baseweb="input"], div[data-baseweb="select"] > div {
         background-color: #33302C !important;
-        border-color: #524C46 !important;
+        border-color: #666 !important; /* 邊框加亮 */
         color: #F0ECE4 !important;
         font-size: 1rem !important;
     }
     input { color: #F0ECE4 !important; font-weight: 500; }
     
-    /* 4. 標題文字：羊皮紙白 (柔和不刺眼) */
+    /* 4. 標題文字 */
     h1, h2, h3 { 
         font-family: '微軟正黑體', sans-serif; 
         color: #F2EBE3 !important;
@@ -70,33 +70,33 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     
-    /* 5. 卡片設計：暖深灰背景 */
+    /* 5. 卡片設計 */
     .person-card { 
         padding: 18px; 
         border-radius: 18px; 
         margin-bottom: 16px; 
-        background-color: #2D2A26; /* 暖色調的深灰 */
+        background-color: #2D2A26;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         border: 1px solid #3E3935; 
         transition: transform 0.2s;
     }
-    .person-card:hover { transform: translateY(-2px); border-color: #888; }
+    .person-card:hover { transform: translateY(-2px); border-color: #999; }
     
-    /* 6. 狀態標籤：低飽和度的抹茶綠與焦糖橘 */
-    .status-camp { border-left: 6px solid #8FBC8F; } /* 抹茶綠 */
-    .status-leave { border-left: 6px solid #D99E6B; } /* 焦糖橘 */
+    /* 6. 狀態標籤 */
+    .status-camp { border-left: 6px solid #8FBC8F; } 
+    .status-leave { border-left: 6px solid #D99E6B; } 
     
     /* 7. 卡片文字 */
     .card-header { display: flex; justify-content: space-between; align-items: center; }
     .card-name { 
         font-size: 1.35rem; 
         font-weight: 800;
-        color: #F2EBE3; /* 乳霜白，對比夠但很溫柔 */
+        color: #FFF; /* 純白名字 */
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
     .card-details { 
         font-size: 1rem;
-        color: #B0A89E; /* 暖卡其灰 */
+        color: #C2B8AD; 
         margin-top: 8px; 
         font-weight: 500; 
     }
@@ -124,35 +124,62 @@ st.markdown("""
         background-color: #3A3632; 
         padding: 10px 18px; 
         border-radius: 12px; 
-        color: #D6CEC3;
+        color: #E0E0E0;
         font-size: 0.95rem;
         font-weight: 500;
-        border: 1px solid #524C46;
+        border: 1px solid #666;
     }
     
-    /* 按鈕優化 */
+    /* =========================================
+       🚨 關鍵修復 1：一般按鈕 (包含側邊欄按鈕)
+       ========================================= */
     .stButton button { 
-        border-radius: 12px; 
-        background-color: #3A3632;
-        color: #E3DED5;
-        font-weight: 600;
-        border: 1px solid #524C46;
+        border-radius: 12px !important; 
+        background-color: #4A4540 !important; /* 提亮背景色 */
+        color: #FFFFFF !important; /* 純白文字 */
+        font-weight: 700 !important; /* 加粗 */
+        border: 1px solid #6B655F !important; /* 明顯邊框 */
+        transition: all 0.2s ease;
     }
+    /* 滑鼠移過去的效果 */
     .stButton button:hover {
-        background-color: #4E4842;
-        border-color: #8FBC8F;
-        color: #8FBC8F;
+        background-color: #5E5852 !important;
+        border-color: #D99E6B !important; /* 變成亮橘色邊框 */
+        color: #D99E6B !important; /* 文字變橘色 */
     }
     
-    /* 手機左上角箭頭按鈕顏色修正 */
+    /* 針對「主要按鈕」(如刪除/重置) 特別加強 */
+    .stButton button[kind="primary"] {
+        background-color: #5e302a !important; /* 深紅色底 */
+        border-color: #ff6b6b !important;
+        color: #ffdbdb !important;
+    }
+    .stButton button[kind="primary"]:hover {
+        background-color: #8a3c33 !important;
+    }
+
+    /* =========================================
+       🚨 關鍵修復 2：左上角箭頭按鈕 (Sidebar Toggle)
+       ========================================= */
+    
+    /* 確保Header可見，背景色跟主色一樣 */
     header { 
         visibility: visible !important; 
         background-color: #1C1B1A !important;
     }
+    
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;}
+    
+    /* 讓箭頭變成超顯眼的白色，並加個底色 */
     button[kind="header"] {
-        color: #C2B8AD !important; /* 暖灰色箭頭 */
+        color: #FFFFFF !important; /* 純白箭頭 */
+        background-color: rgba(255, 255, 255, 0.15) !important; /* 半透明白色背景 */
+        border-radius: 50%; /* 圓形按鈕 */
+        height: 2.5rem !important;
+        width: 2.5rem !important;
+        margin-top: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.2); /* 淡淡的白框 */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -268,7 +295,7 @@ with st.sidebar:
         st.download_button("📥 下載報表", raw_df.to_csv(index=False).encode('utf-8-sig'), f"roster_{datetime.date.today()}.csv", "text/csv")
     
     with st.expander("🔴 危險操作"):
-        if st.button("⚠️ 重置全部資料"):
+        if st.button("⚠️ 重置全部資料", type="primary"):
             default_df = pd.DataFrame(DEFAULT_ROSTER)
             for col in ["Incident_Reason", "Start_Time", "End_Time"]: default_df[col] = ""
             save_data(default_df)
@@ -373,7 +400,7 @@ with tab1:
         current_present = total_should - current_absent
         reason_counts = Counter(leave_list)
         
-        # --- 顯示暖色夜間版統計看板 ---
+        # --- 顯示統計看板 ---
         st.markdown(f"""
         <div class="stats-container">
             <div class="stats-title">📊 即時現員統計</div>
