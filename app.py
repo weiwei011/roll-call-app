@@ -34,13 +34,13 @@ def check_password():
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-# ✨ 全新的 CSS：專注於「清晰」與「柔和」的平衡
+# ✨ CSS 更新：把手機版的側邊欄按鈕救回來
 st.markdown("""
     <style>
-    /* 1. 全局背景：深灰黑 (不反光) */
+    /* 1. 全局背景 */
     .stApp { background-color: #121212; color: #E0E0E0; }
     
-    /* 2. 側邊欄：深色霧面 */
+    /* 2. 側邊欄 */
     section[data-testid="stSidebar"] {
         background-color: #1A1A1A !important;
         border-right: 1px solid #333;
@@ -50,58 +50,58 @@ st.markdown("""
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] label, 
     section[data-testid="stSidebar"] .stMarkdown {
-        color: #D0D0D0 !important; /* 側邊欄文字調亮 */
+        color: #D0D0D0 !important;
     }
     
-    /* 3. 輸入框優化：字體加大更清晰 */
+    /* 3. 輸入框優化 */
     div[data-baseweb="input"], div[data-baseweb="select"] > div {
         background-color: #2B2B2B !important;
         border-color: #555555 !important;
         color: #FFFFFF !important;
-        font-size: 1rem !important; /* 字體加大 */
+        font-size: 1rem !important;
     }
     input { color: #FFFFFF !important; font-weight: 500; }
     
-    /* 4. 標題文字：珍珠白 (柔和高亮) */
+    /* 4. 標題文字 */
     h1, h2, h3 { 
         font-family: '微軟正黑體', sans-serif; 
-        color: #F2F2F2 !important; /* 珍珠白，比純白柔和 */
-        font-weight: 700; /* 字體加粗 */
+        color: #F2F2F2 !important;
+        font-weight: 700;
         letter-spacing: 0.5px;
     }
     
-    /* 5. 卡片設計：提高對比度 */
+    /* 5. 卡片設計 */
     .person-card { 
         padding: 18px; 
         border-radius: 18px; 
         margin-bottom: 16px; 
-        background-color: #242424; /* 比背景稍亮，凸顯層次 */
+        background-color: #242424;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         border: 1px solid #3A3A3A; 
         transition: transform 0.2s;
     }
     .person-card:hover { transform: translateY(-2px); border-color: #777; }
     
-    /* 6. 狀態標籤：調整為「粉彩螢光色」，黑底更清楚但不刺眼 */
-    .status-camp { border-left: 6px solid #81C784; } /* 柔和薄荷綠 */
-    .status-leave { border-left: 6px solid #FFB74D; } /* 柔和暖陽橘 */
+    /* 6. 狀態標籤 */
+    .status-camp { border-left: 6px solid #81C784; } 
+    .status-leave { border-left: 6px solid #FFB74D; } 
     
-    /* 7. 卡片文字優化 (重點！) */
+    /* 7. 卡片文字 */
     .card-header { display: flex; justify-content: space-between; align-items: center; }
     .card-name { 
         font-size: 1.35rem; 
-        font-weight: 800; /* 加粗 */
-        color: #FAFAFA; /* 極亮白，確保名字最清楚 */
-        text-shadow: 0 1px 2px rgba(0,0,0,0.6); /* 文字陰影增加立體感 */
+        font-weight: 800;
+        color: #FAFAFA;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
     }
     .card-details { 
-        font-size: 1rem; /* 字體加大 */
-        color: #D4D4D4; /* 亮銀灰，比之前更清楚 */
+        font-size: 1rem;
+        color: #D4D4D4;
         margin-top: 8px; 
         font-weight: 500; 
     }
     
-    /* 8. 小標籤：高對比 */
+    /* 8. 小標籤 */
     .tag-badge { 
         font-size: 0.8rem; padding: 4px 10px; border-radius: 12px; 
         background-color: #444; color: #FFF; margin-left: 10px;
@@ -109,7 +109,7 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* 9. 統計看板：清晰化 */
+    /* 9. 統計看板 */
     .stats-container {
         background-color: #242424;
         padding: 22px;
@@ -124,7 +124,7 @@ st.markdown("""
         background-color: #333; 
         padding: 10px 18px; 
         border-radius: 12px; 
-        color: #EEE; /* 字體調亮 */
+        color: #EEE;
         font-size: 0.95rem;
         font-weight: 500;
         border: 1px solid #555;
@@ -144,9 +144,24 @@ st.markdown("""
         color: #81C784;
     }
     
-    /* 隱藏多餘選單 */
+    /* =========================================
+       🚨 關鍵修復：讓手機版左上角的箭頭回來！
+       ========================================= */
+    
+    /* 顯示頂部工具列，但背景設為深色 */
+    header { 
+        visibility: visible !important; 
+        background-color: #121212 !important;
+    }
+    
+    /* 隱藏右上角的漢堡選單 (Deploy那區)，只留左邊箭頭 */
     #MainMenu {visibility: hidden;} 
-    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* 強制將左上角的箭頭按鈕塗成白色 (原本是黑的會看不到) */
+    button[kind="header"] {
+        color: #E0E0E0 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -209,8 +224,8 @@ def get_taiwan_time():
 def get_greeting():
     hour = get_taiwan_time().hour
     if 5 <= hour < 12: return "早安，新的一天開始了！☀️"
-    elif 12 <= hour < 18: return "午後時光，喝杯茶吧！🍵"
-    elif 18 <= hour < 22: return "辛苦了，晚上好！🌙"
+    elif 12 <= hour < 18: return "午安，休息一下吧！🍵"
+    elif 18 <= hour < 22: return "晚安，辛苦了！🌙"
     else: return "夜深了，注意保暖喔！✨"
 
 def load_data():
