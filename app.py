@@ -34,7 +34,7 @@ def check_password():
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-# ✨ CSS 更新：針對「按鈕」與「箭頭」做高對比強化
+# ✨ CSS 更新：針對左上角箭頭做「重裝加強」
 st.markdown("""
     <style>
     /* 1. 全局背景 */
@@ -50,13 +50,13 @@ st.markdown("""
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] label, 
     section[data-testid="stSidebar"] .stMarkdown {
-        color: #E0E0E0 !important; /* 文字調亮 */
+        color: #E0E0E0 !important;
     }
     
     /* 3. 輸入框優化 */
     div[data-baseweb="input"], div[data-baseweb="select"] > div {
         background-color: #33302C !important;
-        border-color: #666 !important; /* 邊框加亮 */
+        border-color: #666 !important;
         color: #F0ECE4 !important;
         font-size: 1rem !important;
     }
@@ -91,7 +91,7 @@ st.markdown("""
     .card-name { 
         font-size: 1.35rem; 
         font-weight: 800;
-        color: #FFF; /* 純白名字 */
+        color: #FFF;
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
     .card-details { 
@@ -130,56 +130,62 @@ st.markdown("""
         border: 1px solid #666;
     }
     
-    /* =========================================
-       🚨 關鍵修復 1：一般按鈕 (包含側邊欄按鈕)
-       ========================================= */
+    /* 10. 一般按鈕 (側邊欄按鈕) */
     .stButton button { 
         border-radius: 12px !important; 
-        background-color: #4A4540 !important; /* 提亮背景色 */
-        color: #FFFFFF !important; /* 純白文字 */
-        font-weight: 700 !important; /* 加粗 */
-        border: 1px solid #6B655F !important; /* 明顯邊框 */
-        transition: all 0.2s ease;
+        background-color: #4A4540 !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+        border: 1px solid #6B655F !important;
     }
-    /* 滑鼠移過去的效果 */
     .stButton button:hover {
-        background-color: #5E5852 !important;
-        border-color: #D99E6B !important; /* 變成亮橘色邊框 */
-        color: #D99E6B !important; /* 文字變橘色 */
+        border-color: #D99E6B !important;
+        color: #D99E6B !important;
     }
-    
-    /* 針對「主要按鈕」(如刪除/重置) 特別加強 */
     .stButton button[kind="primary"] {
-        background-color: #5e302a !important; /* 深紅色底 */
+        background-color: #5e302a !important;
         border-color: #ff6b6b !important;
-        color: #ffdbdb !important;
-    }
-    .stButton button[kind="primary"]:hover {
-        background-color: #8a3c33 !important;
     }
 
     /* =========================================
-       🚨 關鍵修復 2：左上角箭頭按鈕 (Sidebar Toggle)
+       🚨🚨🚨 最左上角「展開箭頭」按鈕 (超強顯眼版)
        ========================================= */
     
-    /* 確保Header可見，背景色跟主色一樣 */
+    /* 確保 Header 區域可見 */
     header { 
         visibility: visible !important; 
-        background-color: #1C1B1A !important;
+        background-color: transparent !important;
     }
     
+    /* 隱藏右上角的漢堡選單，避免干擾 */
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;}
     
-    /* 讓箭頭變成超顯眼的白色，並加個底色 */
-    button[kind="header"] {
-        color: #FFFFFF !important; /* 純白箭頭 */
-        background-color: rgba(255, 255, 255, 0.15) !important; /* 半透明白色背景 */
-        border-radius: 50%; /* 圓形按鈕 */
-        height: 2.5rem !important;
-        width: 2.5rem !important;
-        margin-top: 5px;
-        border: 1px solid rgba(255, 255, 255, 0.2); /* 淡淡的白框 */
+    /* 針對那個箭頭按鈕 (Collapsed Control) */
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #2D2A26 !important; /* 深色底 */
+        border: 2px solid #D99E6B !important; /* 亮橘色粗邊框 */
+        border-radius: 12px !important; /* 圓角方形 */
+        color: #FFFFFF !important; /* 箭頭純白 */
+        padding: 5px !important;
+        margin-top: 10px !important;
+        margin-left: 10px !important;
+        box-shadow: 0 0 10px rgba(217, 158, 107, 0.3) !important; /* 微微發光 */
+        height: 3rem !important;
+        width: 3rem !important;
+    }
+    
+    /* 確保箭頭圖示本身也是白的 */
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important;
+        stroke: white !important;
+        stroke-width: 2px !important;
+    }
+    
+    /* 滑鼠移過去變色 */
+    [data-testid="stSidebarCollapsedControl"]:hover {
+        background-color: #D99E6B !important; /* 變橘色底 */
+        border-color: #FFF !important;
     }
     </style>
 """, unsafe_allow_html=True)
