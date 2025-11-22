@@ -11,7 +11,6 @@ import time
 LOGIN_PASSWORD = "1234" # <--- 記得修改密碼
 
 def check_password():
-    """密碼檢查機制"""
     def password_entered():
         if st.session_state["password"] == LOGIN_PASSWORD:
             st.session_state["password_correct"] = True
@@ -59,11 +58,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 資料庫核心 (這裡有重大升級！)
+# 2. 資料庫核心 (盲抓版)
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 預設名單
 DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
     {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
@@ -120,34 +118,29 @@ def get_greeting():
     else: return "夜深了，注意保暖喔！✨"
 
 def load_data():
-    """
-    這個函式經過強化，具備自我修復功能。
-    如果發現雲端資料缺了 'Category' 或 'Name' 這些重要欄位，
-    它不會報錯，而是會自動把預設名單填回去修好它。
-    """
     try:
-        df = conn.read(worksheet="Sheet1", ttl=0)
+        # 🌟 這裡改了：拿掉 worksheet="Sheet1"，預設抓第一頁
+        df = conn.read(ttl=0)
         
-        # 🚨 關鍵修復點：檢查欄位是否齊全
-        # 如果是空的，或者缺了 Category，或者缺了 Name，就視為「壞掉」
         if df is None or df.empty or "Category" not in df.columns or "Name" not in df.columns:
-            st.warning("⚠️ 偵測到雲端資料異常，正在自我修復中...")
+            st.warning("⚠️ 資料庫初始化中...")
             init_df = pd.DataFrame(DEFAULT_ROSTER)
             for col in ["Incident_Reason", "Start_Time", "End_Time"]:
                 init_df[col] = ""
-            conn.update(worksheet="Sheet1", data=init_df)
-            return init_df # 回傳修好的資料
+            # 🌟 這裡也改了
+            conn.update(data=init_df)
+            return init_df
             
         return df.fillna("")
     except Exception as e:
-        # 萬一連不上線，回傳空表，避免程式整個掛掉
-        st.error(f"⚠️ 資料庫連線失敗: {e}")
-        # 回傳一個緊急的空 DataFrame，至少讓頁面能跑，雖然是白的
+        st.error(f"⚠️ 資料庫讀取失敗: {e}")
+        # 回傳空表防止當機
         return pd.DataFrame(columns=["Category", "Name", "Tag", "Incident_Reason", "Start_Time", "End_Time"])
 
 def save_data(df):
     try:
-        conn.update(worksheet="Sheet1", data=df)
+        # 🌟 這裡也改了
+        conn.update(data=df)
         st.toast("✅ 資料庫已更新", icon="☁️")
     except Exception as e:
         st.error(f"寫入失敗: {e}")
@@ -156,14 +149,13 @@ def save_data(df):
 raw_df = load_data()
 
 # ==========================================
-# 3. 側邊欄 (新增人員功能在此)
+# 3. 側邊欄
 # ==========================================
 with st.sidebar:
     st.title("⚙️ 人員管理")
     st.write(f"時間：{get_taiwan_time().strftime('%H:%M')}")
     st.divider()
 
-    # --- 新增人員區塊 ---
     with st.expander("➕ 新增人員", expanded=False):
         with st.form("add_person_form"):
             new_cat = st.selectbox("類別", ["官員", "左班", "右班", "義務役"])
@@ -188,7 +180,6 @@ with st.sidebar:
     
     st.divider()
     
-    # 防止 raw_df 為空時下載按鈕報錯
     if not raw_df.empty:
         st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
     
@@ -297,11 +288,10 @@ with tab1:
         cats = ["官員", "左班", "右班", "義務役"]
         
         for category in cats:
-            # 這裡就是原本報錯的地方，現在加上了檢查機制
             if "Category" in raw_df.columns:
                 group_df = raw_df[raw_df['Category'] == category]
             else:
-                group_df = pd.DataFrame() # 避免報錯
+                group_df = pd.DataFrame()
                 
             if group_df.empty: continue
             
