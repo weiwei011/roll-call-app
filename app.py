@@ -30,88 +30,128 @@ def check_password():
         return True
 
 # ==========================================
-# 1. 頁面與「深色護眼」樣式設定
+# 1. 頁面與「柔光清晰」樣式設定
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-if not check_password():
-    st.stop()
-
-# ✨ 這裡更換了全新的 CSS 配色方案 (深色護眼模式)
+# ✨ 全新的 CSS：專注於「清晰」與「柔和」的平衡
 st.markdown("""
     <style>
-    /* 全局背景：深碳黑/夜間模式 */
+    /* 1. 全局背景：深灰黑 (不反光) */
     .stApp { background-color: #121212; color: #E0E0E0; }
     
-    /* 標題文字顏色：亮灰白 */
-    h1, h2, h3 { font-family: '微軟正黑體', sans-serif; color: #FFFFFF !important; }
+    /* 2. 側邊欄：深色霧面 */
+    section[data-testid="stSidebar"] {
+        background-color: #1A1A1A !important;
+        border-right: 1px solid #333;
+    }
+    section[data-testid="stSidebar"] h1, 
+    section[data-testid="stSidebar"] h2, 
+    section[data-testid="stSidebar"] h3, 
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] .stMarkdown {
+        color: #D0D0D0 !important; /* 側邊欄文字調亮 */
+    }
     
-    /* 卡片設計：深鐵灰背景 */
+    /* 3. 輸入框優化：字體加大更清晰 */
+    div[data-baseweb="input"], div[data-baseweb="select"] > div {
+        background-color: #2B2B2B !important;
+        border-color: #555555 !important;
+        color: #FFFFFF !important;
+        font-size: 1rem !important; /* 字體加大 */
+    }
+    input { color: #FFFFFF !important; font-weight: 500; }
+    
+    /* 4. 標題文字：珍珠白 (柔和高亮) */
+    h1, h2, h3 { 
+        font-family: '微軟正黑體', sans-serif; 
+        color: #F2F2F2 !important; /* 珍珠白，比純白柔和 */
+        font-weight: 700; /* 字體加粗 */
+        letter-spacing: 0.5px;
+    }
+    
+    /* 5. 卡片設計：提高對比度 */
     .person-card { 
-        padding: 16px; 
-        border-radius: 16px; 
-        margin-bottom: 15px; 
-        background-color: #1E1E1E; 
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        border: 1px solid #333333; 
+        padding: 18px; 
+        border-radius: 18px; 
+        margin-bottom: 16px; 
+        background-color: #242424; /* 比背景稍亮，凸顯層次 */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        border: 1px solid #3A3A3A; 
         transition: transform 0.2s;
     }
-    .person-card:hover { transform: translateY(-3px); border-color: #555; }
+    .person-card:hover { transform: translateY(-2px); border-color: #777; }
     
-    /* 狀態標籤顏色 - 螢光綠與螢光黃，但在黑底上要柔和一點 */
-    .status-camp { border-left: 5px solid #66BB6A; } /* 柔和綠 */
-    .status-leave { border-left: 5px solid #FFA726; } /* 柔和橘 */
+    /* 6. 狀態標籤：調整為「粉彩螢光色」，黑底更清楚但不刺眼 */
+    .status-camp { border-left: 6px solid #81C784; } /* 柔和薄荷綠 */
+    .status-leave { border-left: 6px solid #FFB74D; } /* 柔和暖陽橘 */
     
-    /* 名字與圖示 */
+    /* 7. 卡片文字優化 (重點！) */
     .card-header { display: flex; justify-content: space-between; align-items: center; }
-    .card-name { font-size: 1.3rem; font-weight: 700; color: #FFFFFF; letter-spacing: 1px; }
-    .card-details { font-size: 0.95rem; color: #AAAAAA; margin-top: 6px; font-weight: 500; }
+    .card-name { 
+        font-size: 1.35rem; 
+        font-weight: 800; /* 加粗 */
+        color: #FAFAFA; /* 極亮白，確保名字最清楚 */
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6); /* 文字陰影增加立體感 */
+    }
+    .card-details { 
+        font-size: 1rem; /* 字體加大 */
+        color: #D4D4D4; /* 亮銀灰，比之前更清楚 */
+        margin-top: 8px; 
+        font-weight: 500; 
+    }
     
-    /* 小標籤樣式 */
+    /* 8. 小標籤：高對比 */
     .tag-badge { 
-        font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; 
-        background-color: #333333; color: #CCCCCC; margin-left: 8px;
-        vertical-align: middle; border: 1px solid #444;
+        font-size: 0.8rem; padding: 4px 10px; border-radius: 12px; 
+        background-color: #444; color: #FFF; margin-left: 10px;
+        vertical-align: middle; border: 1px solid #555;
+        font-weight: bold;
     }
     
-    /* 統計看板樣式 (深色版) */
+    /* 9. 統計看板：清晰化 */
     .stats-container {
-        background-color: #1E1E1E;
-        padding: 20px;
-        border-radius: 16px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        margin-bottom: 20px;
-        border: 1px solid #333;
+        background-color: #242424;
+        padding: 22px;
+        border-radius: 18px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        margin-bottom: 25px;
+        border: 1px solid #3A3A3A;
     }
-    .stats-title { font-size: 1.1rem; color: #FFF; font-weight: bold; margin-bottom: 10px; }
+    .stats-title { font-size: 1.15rem; color: #FFF; font-weight: 900; margin-bottom: 12px; }
     .stats-grid { display: flex; gap: 15px; flex-wrap: wrap; }
     .stat-item { 
-        background-color: #2D2D2D; 
-        padding: 8px 15px; 
-        border-radius: 10px; 
-        color: #DDDDDD;
-        font-size: 0.9rem;
-        border: 1px solid #444;
+        background-color: #333; 
+        padding: 10px 18px; 
+        border-radius: 12px; 
+        color: #EEE; /* 字體調亮 */
+        font-size: 0.95rem;
+        font-weight: 500;
+        border: 1px solid #555;
     }
     
-    /* 按鈕優化 (深色底) */
+    /* 按鈕優化 */
     .stButton button { 
-        border-radius: 10px; 
-        background-color: #2D2D2D;
-        color: #EEE;
-        border: 1px solid #444;
+        border-radius: 12px; 
+        background-color: #333;
+        color: #FFF;
+        font-weight: 600;
+        border: 1px solid #555;
     }
     .stButton button:hover {
-        border-color: #66BB6A;
-        color: #66BB6A;
+        background-color: #444;
+        border-color: #81C784;
+        color: #81C784;
     }
     
-    /* 進度條顏色 */
-    .stProgress > div > div > div > div {
-        background-color: #66BB6A;
-    }
+    /* 隱藏多餘選單 */
+    #MainMenu {visibility: hidden;} 
+    header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
+
+if not check_password():
+    st.stop()
 
 # ==========================================
 # 2. 資料庫連線
@@ -169,8 +209,8 @@ def get_taiwan_time():
 def get_greeting():
     hour = get_taiwan_time().hour
     if 5 <= hour < 12: return "早安，新的一天開始了！☀️"
-    elif 12 <= hour < 18: return "午安，休息一下吧！🍵"
-    elif 18 <= hour < 22: return "晚安，辛苦了！🌙"
+    elif 12 <= hour < 18: return "午後時光，喝杯茶吧！🍵"
+    elif 18 <= hour < 22: return "辛苦了，晚上好！🌙"
     else: return "夜深了，注意保暖喔！✨"
 
 def load_data():
@@ -301,7 +341,7 @@ def parse_batch_input(text_input, current_df):
     return current_df, updated_count
 
 # ==========================================
-# 4. 主頁面與統計儀表板 (全新設計)
+# 4. 主頁面與統計儀表板
 # ==========================================
 st.title(get_greeting())
 tab1, tab2 = st.tabs(["📋 點名簿", "📝 批次作業"])
@@ -313,7 +353,7 @@ with tab1:
         st.rerun()
 
     if not raw_df.empty:
-        # --- 📊 全新統計邏輯 ---
+        # --- 📊 統計邏輯 ---
         total_should = len(raw_df)
         leave_list = []
         
@@ -331,11 +371,11 @@ with tab1:
         <div class="stats-container">
             <div class="stats-title">📊 即時現員統計</div>
             <div style="margin-bottom: 15px; font-size: 1rem; color: #DDD;">
-                <span style="color:#66BB6A; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <span style="color:#FFA726; font-weight:bold;">🏠 休假：{current_absent}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <span style="color:#888;">應到：{total_should}</span>
+                <span style="color:#81C784; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#FFB74D; font-weight:bold;">🏠 休假：{current_absent}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#BBB;">應到：{total_should}</span>
             </div>
-            <div class="stats-title" style="font-size: 0.95rem; margin-top:10px; color:#CCC;">📌 休假明細：</div>
+            <div class="stats-title" style="font-size: 0.95rem; margin-top:10px; color:#D0D0D0;">📌 休假明細：</div>
             <div class="stats-grid">
                 {''.join([f'<div class="stat-item">{k}: <b>{v}</b> 員</div>' for k, v in reason_counts.items()]) if leave_list else '<div class="stat-item">目前全員在營</div>'}
             </div>
