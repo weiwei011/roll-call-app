@@ -8,7 +8,7 @@ import time
 # ==========================================
 # 🔐 安全登入系統
 # ==========================================
-LOGIN_PASSWORD = "1234" # <--- 記得修改密碼
+LOGIN_PASSWORD = "1234" # <--- 密碼
 
 def check_password():
     def password_entered():
@@ -58,7 +58,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 資料庫核心 (盲抓版)
+# 2. 資料庫核心
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
@@ -108,10 +108,11 @@ DEFAULT_ROSTER = [
 ]
 
 def get_taiwan_time():
-    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
+    # 取得目前台灣時間 (不帶時區資訊，方便比對)
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).replace(tzinfo=None)
 
 def get_greeting():
-    hour = get_taiwan_time().hour
+    hour = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).hour
     if 5 <= hour < 12: return "早安，新的一天開始了！☀️"
     elif 12 <= hour < 18: return "午安，休息一下吧！🍵"
     elif 18 <= hour < 22: return "晚安，辛苦了！🌙"
@@ -119,27 +120,21 @@ def get_greeting():
 
 def load_data():
     try:
-        # 🌟 這裡改了：拿掉 worksheet="Sheet1"，預設抓第一頁
         df = conn.read(ttl=0)
-        
         if df is None or df.empty or "Category" not in df.columns or "Name" not in df.columns:
             st.warning("⚠️ 資料庫初始化中...")
             init_df = pd.DataFrame(DEFAULT_ROSTER)
             for col in ["Incident_Reason", "Start_Time", "End_Time"]:
                 init_df[col] = ""
-            # 🌟 這裡也改了
             conn.update(data=init_df)
             return init_df
-            
         return df.fillna("")
     except Exception as e:
         st.error(f"⚠️ 資料庫讀取失敗: {e}")
-        # 回傳空表防止當機
         return pd.DataFrame(columns=["Category", "Name", "Tag", "Incident_Reason", "Start_Time", "End_Time"])
 
 def save_data(df):
     try:
-        # 🌟 這裡也改了
         conn.update(data=df)
         st.toast("✅ 資料庫已更新", icon="☁️")
     except Exception as e:
@@ -153,7 +148,7 @@ raw_df = load_data()
 # ==========================================
 with st.sidebar:
     st.title("⚙️ 人員管理")
-    st.write(f"時間：{get_taiwan_time().strftime('%H:%M')}")
+    st.write(f"時間：{datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%H:%M')}")
     st.divider()
 
     with st.expander("➕ 新增人員", expanded=False):
@@ -179,7 +174,6 @@ with st.sidebar:
                     st.error("請輸入姓名")
     
     st.divider()
-    
     if not raw_df.empty:
         st.download_button("📥 下載備份", raw_df.to_csv(index=False).encode('utf-8-sig'), f"backup_{datetime.date.today()}.csv", "text/csv")
     
@@ -193,13 +187,27 @@ with st.sidebar:
 
 def check_status_row(row):
     now = get_taiwan_time()
-    reason, start_str, end_str = str(row.get('Incident_Reason', '')).strip(), str(row.get('Start_Time', '')).strip(), str(row.get('End_Time', '')).strip()
-    if not reason or not start_str or not end_str: return "camp", "在營", "🟢 在營"
+    reason = str(row.get('Incident_Reason', '')).strip()
+    start_raw = row.get('Start_Time', '')
+    end_raw = row.get('End_Time', '')
+
+    if not reason or not str(start_raw).strip() or not str(end_raw).strip():
+        return "camp", "在營", "🟢 在營"
+
     try:
-        start = datetime.datetime.fromisoformat(start_str)
-        end = datetime.datetime.fromisoformat(end_str)
-        if start.tzinfo is None: start = start.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
-        if end.tzinfo is None: end = end.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
+        # ✨ 強力時間轉換 (相容字串、Excel格式、Timestamp)
+        start = pd.to_datetime(start_raw, errors='coerce')
+        end = pd.to_datetime(end_raw, errors='coerce')
+
+        # 檢查是否為有效時間 (防止 NaT)
+        if pd.isna(start) or pd.isna(end):
+            return "camp", "在營", "🟢 在營"
+
+        # 確保不帶時區，統一比對
+        if start.tzinfo is not None: start = start.tz_localize(None)
+        if end.tzinfo is not None: end = end.tz_localize(None)
+
+        # 判斷狀態
         if start <= now <= end:
             return "leave", reason, f"🟡 {reason} ({start.strftime('%m/%d %H:%M')}~)"
         elif now < start:
@@ -251,9 +259,6 @@ def parse_batch_input(text_input, current_df):
             reason = re.sub(r'[ \t,，.\-~]+', '', temp_line).strip()
             if not reason: reason = "外散宿"
 
-            start_dt = start_dt.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
-            end_dt = end_dt.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
-            
             idx = current_df[current_df['Name'] == found_name].index[0]
             current_df.at[idx, 'Incident_Reason'] = reason
             current_df.at[idx, 'Start_Time'] = start_dt.isoformat()
