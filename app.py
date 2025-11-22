@@ -30,80 +30,85 @@ def check_password():
         return True
 
 # ==========================================
-# 1. 頁面與全新「溫馨風格」樣式設定
+# 1. 頁面與「深色護眼」樣式設定
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
 if not check_password():
     st.stop()
 
-# ✨ 這裡更換了全新的 CSS 配色方案 (拿鐵/燕麥色系)
+# ✨ 這裡更換了全新的 CSS 配色方案 (深色護眼模式)
 st.markdown("""
     <style>
-    /* 全局背景：柔和的米色/燕麥色 */
-    .stApp { background-color: #F7F5F2; color: #4A403A; }
+    /* 全局背景：深碳黑/夜間模式 */
+    .stApp { background-color: #121212; color: #E0E0E0; }
     
-    /* 標題文字顏色：深咖啡灰 */
-    h1, h2, h3 { font-family: '微軟正黑體', sans-serif; color: #4A403A !important; }
+    /* 標題文字顏色：亮灰白 */
+    h1, h2, h3 { font-family: '微軟正黑體', sans-serif; color: #FFFFFF !important; }
     
-    /* 卡片設計：白色背景 + 柔和陰影 */
+    /* 卡片設計：深鐵灰背景 */
     .person-card { 
         padding: 16px; 
-        border-radius: 20px; 
+        border-radius: 16px; 
         margin-bottom: 15px; 
-        background-color: #FFFFFF; 
-        box-shadow: 0 4px 15px rgba(100, 100, 100, 0.05);
-        border: 1px solid #EDEBE8; 
+        background-color: #1E1E1E; 
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        border: 1px solid #333333; 
         transition: transform 0.2s;
     }
-    .person-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(100, 100, 100, 0.1); }
+    .person-card:hover { transform: translateY(-3px); border-color: #555; }
     
-    /* 狀態標籤顏色 */
-    .status-camp { border-left: 6px solid #8EB897; } /* 鼠尾草綠 (在營) */
-    .status-leave { border-left: 6px solid #F4A261; } /* 溫暖橘 (休假) */
+    /* 狀態標籤顏色 - 螢光綠與螢光黃，但在黑底上要柔和一點 */
+    .status-camp { border-left: 5px solid #66BB6A; } /* 柔和綠 */
+    .status-leave { border-left: 5px solid #FFA726; } /* 柔和橘 */
     
     /* 名字與圖示 */
     .card-header { display: flex; justify-content: space-between; align-items: center; }
-    .card-name { font-size: 1.3rem; font-weight: 700; color: #2C2420; letter-spacing: 1px; }
-    .card-details { font-size: 0.95rem; color: #8D817B; margin-top: 6px; font-weight: 500; }
+    .card-name { font-size: 1.3rem; font-weight: 700; color: #FFFFFF; letter-spacing: 1px; }
+    .card-details { font-size: 0.95rem; color: #AAAAAA; margin-top: 6px; font-weight: 500; }
     
     /* 小標籤樣式 */
     .tag-badge { 
         font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; 
-        background-color: #EAE8E4; color: #5C5552; margin-left: 8px;
-        vertical-align: middle;
+        background-color: #333333; color: #CCCCCC; margin-left: 8px;
+        vertical-align: middle; border: 1px solid #444;
     }
     
-    /* 統計看板樣式 */
+    /* 統計看板樣式 (深色版) */
     .stats-container {
-        background-color: #FFFFFF;
+        background-color: #1E1E1E;
         padding: 20px;
-        border-radius: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-radius: 16px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         margin-bottom: 20px;
-        border: 1px solid #E0Dcd8;
+        border: 1px solid #333;
     }
-    .stats-title { font-size: 1.1rem; color: #4A403A; font-weight: bold; margin-bottom: 10px; }
+    .stats-title { font-size: 1.1rem; color: #FFF; font-weight: bold; margin-bottom: 10px; }
     .stats-grid { display: flex; gap: 15px; flex-wrap: wrap; }
     .stat-item { 
-        background-color: #FDFBF7; 
+        background-color: #2D2D2D; 
         padding: 8px 15px; 
-        border-radius: 12px; 
-        color: #6B5E57;
+        border-radius: 10px; 
+        color: #DDDDDD;
         font-size: 0.9rem;
-        border: 1px solid #EFEDEA;
+        border: 1px solid #444;
     }
     
-    /* 按鈕優化 */
+    /* 按鈕優化 (深色底) */
     .stButton button { 
-        border-radius: 12px; 
-        background-color: #FFFFFF;
-        color: #4A403A;
-        border: 1px solid #D0C9C0;
+        border-radius: 10px; 
+        background-color: #2D2D2D;
+        color: #EEE;
+        border: 1px solid #444;
     }
     .stButton button:hover {
-        border-color: #8EB897;
-        color: #8EB897;
+        border-color: #66BB6A;
+        color: #66BB6A;
+    }
+    
+    /* 進度條顏色 */
+    .stProgress > div > div > div > div {
+        background-color: #66BB6A;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -163,9 +168,9 @@ def get_taiwan_time():
 
 def get_greeting():
     hour = get_taiwan_time().hour
-    if 5 <= hour < 12: return "早安，美好的一天！☀️"
-    elif 12 <= hour < 18: return "午後時光，喝杯茶吧！🍵"
-    elif 18 <= hour < 22: return "辛苦了，晚上好！🌙"
+    if 5 <= hour < 12: return "早安，新的一天開始了！☀️"
+    elif 12 <= hour < 18: return "午安，休息一下吧！🍵"
+    elif 18 <= hour < 22: return "晚安，辛苦了！🌙"
     else: return "夜深了，注意保暖喔！✨"
 
 def load_data():
@@ -310,7 +315,7 @@ with tab1:
     if not raw_df.empty:
         # --- 📊 全新統計邏輯 ---
         total_should = len(raw_df)
-        leave_list = [] # 儲存休假人的事由
+        leave_list = []
         
         for _, row in raw_df.iterrows():
             status, reason, _ = check_status_row(row)
@@ -319,20 +324,18 @@ with tab1:
         
         current_absent = len(leave_list)
         current_present = total_should - current_absent
-        
-        # 統計各種假別的數量 (例如：補休: 2, 病假: 1)
         reason_counts = Counter(leave_list)
         
-        # --- 顯示美化後的統計看板 ---
+        # --- 顯示深色版統計看板 ---
         st.markdown(f"""
         <div class="stats-container">
             <div class="stats-title">📊 即時現員統計</div>
-            <div style="margin-bottom: 15px; font-size: 1rem;">
-                <span style="color:#8EB897; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <span style="color:#F4A261; font-weight:bold;">🏠 休假：{current_absent}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <span style="color:#8D817B;">應到：{total_should}</span>
+            <div style="margin-bottom: 15px; font-size: 1rem; color: #DDD;">
+                <span style="color:#66BB6A; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#FFA726; font-weight:bold;">🏠 休假：{current_absent}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#888;">應到：{total_should}</span>
             </div>
-            <div class="stats-title" style="font-size: 0.95rem; margin-top:10px;">📌 休假明細：</div>
+            <div class="stats-title" style="font-size: 0.95rem; margin-top:10px; color:#CCC;">📌 休假明細：</div>
             <div class="stats-grid">
                 {''.join([f'<div class="stat-item">{k}: <b>{v}</b> 員</div>' for k, v in reason_counts.items()]) if leave_list else '<div class="stat-item">目前全員在營</div>'}
             </div>
@@ -347,7 +350,7 @@ with tab1:
             else: group_df = pd.DataFrame()
             if group_df.empty: continue
             
-            st.markdown(f"### {category}") # 使用預設標題，但已透過 CSS 改色
+            st.markdown(f"### {category}")
             for i, row in group_df.iterrows():
                 status_code, reason, status_text = check_status_row(row)
                 css_class = "status-leave" if status_code == "leave" else "status-camp"
