@@ -30,73 +30,73 @@ def check_password():
         return True
 
 # ==========================================
-# 1. 頁面與「柔光清晰」樣式設定
+# 1. 頁面與「暖色夜間」樣式設定
 # ==========================================
 st.set_page_config(page_title="部隊電子點名簿", layout="wide", page_icon="📝")
 
-# ✨ CSS 更新：把手機版的側邊欄按鈕救回來
+# ✨ CSS 更新：暖色調夜間模式 (Warm Dark Theme)
 st.markdown("""
     <style>
-    /* 1. 全局背景 */
-    .stApp { background-color: #121212; color: #E0E0E0; }
+    /* 1. 全局背景：深暖褐 (像濃縮咖啡)，不發藍光 */
+    .stApp { background-color: #1C1B1A; color: #E3DED5; }
     
-    /* 2. 側邊欄 */
+    /* 2. 側邊欄：深巧克力色 */
     section[data-testid="stSidebar"] {
-        background-color: #1A1A1A !important;
-        border-right: 1px solid #333;
+        background-color: #23201D !important;
+        border-right: 1px solid #3E3935;
     }
     section[data-testid="stSidebar"] h1, 
     section[data-testid="stSidebar"] h2, 
     section[data-testid="stSidebar"] h3, 
     section[data-testid="stSidebar"] label, 
     section[data-testid="stSidebar"] .stMarkdown {
-        color: #D0D0D0 !important;
+        color: #C2B8AD !important; /* 暖灰色文字 */
     }
     
-    /* 3. 輸入框優化 */
+    /* 3. 輸入框優化：深褐底 + 乳霜字 */
     div[data-baseweb="input"], div[data-baseweb="select"] > div {
-        background-color: #2B2B2B !important;
-        border-color: #555555 !important;
-        color: #FFFFFF !important;
+        background-color: #33302C !important;
+        border-color: #524C46 !important;
+        color: #F0ECE4 !important;
         font-size: 1rem !important;
     }
-    input { color: #FFFFFF !important; font-weight: 500; }
+    input { color: #F0ECE4 !important; font-weight: 500; }
     
-    /* 4. 標題文字 */
+    /* 4. 標題文字：羊皮紙白 (柔和不刺眼) */
     h1, h2, h3 { 
         font-family: '微軟正黑體', sans-serif; 
-        color: #F2F2F2 !important;
+        color: #F2EBE3 !important;
         font-weight: 700;
         letter-spacing: 0.5px;
     }
     
-    /* 5. 卡片設計 */
+    /* 5. 卡片設計：暖深灰背景 */
     .person-card { 
         padding: 18px; 
         border-radius: 18px; 
         margin-bottom: 16px; 
-        background-color: #242424;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        border: 1px solid #3A3A3A; 
+        background-color: #2D2A26; /* 暖色調的深灰 */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        border: 1px solid #3E3935; 
         transition: transform 0.2s;
     }
-    .person-card:hover { transform: translateY(-2px); border-color: #777; }
+    .person-card:hover { transform: translateY(-2px); border-color: #888; }
     
-    /* 6. 狀態標籤 */
-    .status-camp { border-left: 6px solid #81C784; } 
-    .status-leave { border-left: 6px solid #FFB74D; } 
+    /* 6. 狀態標籤：低飽和度的抹茶綠與焦糖橘 */
+    .status-camp { border-left: 6px solid #8FBC8F; } /* 抹茶綠 */
+    .status-leave { border-left: 6px solid #D99E6B; } /* 焦糖橘 */
     
     /* 7. 卡片文字 */
     .card-header { display: flex; justify-content: space-between; align-items: center; }
     .card-name { 
         font-size: 1.35rem; 
         font-weight: 800;
-        color: #FAFAFA;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        color: #F2EBE3; /* 乳霜白，對比夠但很溫柔 */
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
     .card-details { 
         font-size: 1rem;
-        color: #D4D4D4;
+        color: #B0A89E; /* 暖卡其灰 */
         margin-top: 8px; 
         font-weight: 500; 
     }
@@ -104,63 +104,55 @@ st.markdown("""
     /* 8. 小標籤 */
     .tag-badge { 
         font-size: 0.8rem; padding: 4px 10px; border-radius: 12px; 
-        background-color: #444; color: #FFF; margin-left: 10px;
-        vertical-align: middle; border: 1px solid #555;
+        background-color: #423D38; color: #E3DED5; margin-left: 10px;
+        vertical-align: middle; border: 1px solid #59524C;
         font-weight: bold;
     }
     
     /* 9. 統計看板 */
     .stats-container {
-        background-color: #242424;
+        background-color: #2D2A26;
         padding: 22px;
         border-radius: 18px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         margin-bottom: 25px;
-        border: 1px solid #3A3A3A;
+        border: 1px solid #3E3935;
     }
-    .stats-title { font-size: 1.15rem; color: #FFF; font-weight: 900; margin-bottom: 12px; }
+    .stats-title { font-size: 1.15rem; color: #F2EBE3; font-weight: 900; margin-bottom: 12px; }
     .stats-grid { display: flex; gap: 15px; flex-wrap: wrap; }
     .stat-item { 
-        background-color: #333; 
+        background-color: #3A3632; 
         padding: 10px 18px; 
         border-radius: 12px; 
-        color: #EEE;
+        color: #D6CEC3;
         font-size: 0.95rem;
         font-weight: 500;
-        border: 1px solid #555;
+        border: 1px solid #524C46;
     }
     
     /* 按鈕優化 */
     .stButton button { 
         border-radius: 12px; 
-        background-color: #333;
-        color: #FFF;
+        background-color: #3A3632;
+        color: #E3DED5;
         font-weight: 600;
-        border: 1px solid #555;
+        border: 1px solid #524C46;
     }
     .stButton button:hover {
-        background-color: #444;
-        border-color: #81C784;
-        color: #81C784;
+        background-color: #4E4842;
+        border-color: #8FBC8F;
+        color: #8FBC8F;
     }
     
-    /* =========================================
-       🚨 關鍵修復：讓手機版左上角的箭頭回來！
-       ========================================= */
-    
-    /* 顯示頂部工具列，但背景設為深色 */
+    /* 手機左上角箭頭按鈕顏色修正 */
     header { 
         visibility: visible !important; 
-        background-color: #121212 !important;
+        background-color: #1C1B1A !important;
     }
-    
-    /* 隱藏右上角的漢堡選單 (Deploy那區)，只留左邊箭頭 */
     #MainMenu {visibility: hidden;} 
     footer {visibility: hidden;}
-    
-    /* 強制將左上角的箭頭按鈕塗成白色 (原本是黑的會看不到) */
     button[kind="header"] {
-        color: #E0E0E0 !important;
+        color: #C2B8AD !important; /* 暖灰色箭頭 */
     }
     </style>
 """, unsafe_allow_html=True)
@@ -381,16 +373,16 @@ with tab1:
         current_present = total_should - current_absent
         reason_counts = Counter(leave_list)
         
-        # --- 顯示深色版統計看板 ---
+        # --- 顯示暖色夜間版統計看板 ---
         st.markdown(f"""
         <div class="stats-container">
             <div class="stats-title">📊 即時現員統計</div>
-            <div style="margin-bottom: 15px; font-size: 1rem; color: #DDD;">
-                <span style="color:#81C784; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <span style="color:#FFB74D; font-weight:bold;">🏠 休假：{current_absent}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <span style="color:#BBB;">應到：{total_should}</span>
+            <div style="margin-bottom: 15px; font-size: 1rem; color: #D6CEC3;">
+                <span style="color:#8FBC8F; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#D99E6B; font-weight:bold;">🏠 休假：{current_absent}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#8D817B;">應到：{total_should}</span>
             </div>
-            <div class="stats-title" style="font-size: 0.95rem; margin-top:10px; color:#D0D0D0;">📌 休假明細：</div>
+            <div class="stats-title" style="font-size: 0.95rem; margin-top:10px; color:#C2B8AD;">📌 休假明細：</div>
             <div class="stats-grid">
                 {''.join([f'<div class="stat-item">{k}: <b>{v}</b> 員</div>' for k, v in reason_counts.items()]) if leave_list else '<div class="stat-item">目前全員在營</div>'}
             </div>
