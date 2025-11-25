@@ -38,22 +38,17 @@ st.set_page_config(page_title="部隊電子點名簿 Pro", layout="wide", page_i
 st.markdown("""
     <style>
     /* --- 🌌 全局主題：喧囂的夜晚 (Noisy Night) --- */
-    
-    /* 1. 背景與主色調 */
     .stApp { 
         background-color: #050505; 
         color: #E0E0E0; 
         background-image: linear-gradient(to bottom, #050505, #141414);
     }
-    
-    /* 2. 側邊欄 */
     section[data-testid="stSidebar"] {
         background-color: #0A0A0A !important;
         border-right: 1px solid #333;
     }
     section[data-testid="stSidebar"] * { color: #AAA !important; }
     
-    /* 3. 輸入框與選單 */
     div[data-baseweb="input"], div[data-baseweb="select"] > div, div[data-baseweb="base-input"], textarea {
         background-color: #1A1A1A !important;
         border: 1px solid #333 !important;
@@ -61,7 +56,6 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* 4. 人員卡片 */
     .person-card { 
         padding: 16px; 
         border-radius: 12px; 
@@ -77,7 +71,6 @@ st.markdown("""
         border-color: #555;
     }
     
-    /* 5. 狀態指示燈 */
     .status-camp { border-left: 4px solid #39FF14; } 
     .status-leave { border-left: 4px solid #FF3131; } 
     
@@ -85,14 +78,12 @@ st.markdown("""
     .card-name { font-size: 1.3rem; font-weight: 700; color: #FFF; letter-spacing: 1px; }
     .card-details { font-size: 0.9rem; color: #888; margin-top: 6px; font-weight: 400; }
     
-    /* 6. 標籤小徽章 */
     .tag-badge { 
         font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; 
         background-color: #333; color: #DDD; margin-left: 8px;
         border: 1px solid #555; vertical-align: middle;
     }
     
-    /* 7. 統計看板 */
     .stats-container {
         background: linear-gradient(135deg, #1A1A1A 0%, #0D0D0D 100%);
         padding: 20px; 
@@ -114,7 +105,6 @@ st.markdown("""
         display: inline-block; margin-right: 8px; margin-bottom: 8px;
     }
     
-    /* 8. 按鈕美化 */
     .stButton button { 
         background-color: #222 !important; 
         color: #EEE !important; 
@@ -131,7 +121,6 @@ st.markdown("""
         color: #00FFC2 !important;
     }
 
-    /* 9. Popover 按鈕隱身 */
     [data-testid="stPopover"] > div > button {
         background-color: transparent !important;
         border: 1px solid #444 !important;
@@ -145,7 +134,6 @@ st.markdown("""
         background-color: #222 !important;
     }
 
-    /* 左上角箭頭 */
     [data-testid="stSidebarCollapsedControl"] {
         background-color: #111 !important; border: 1px solid #FF5F1F !important;
         color: #FF5F1F !important;
@@ -157,11 +145,54 @@ if not check_password():
     st.stop()
 
 # ==========================================
-# 2. 資料庫與邏輯
+# 2. 資料庫與預設名單
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-DEFAULT_ROSTER = [{"Category": "測試", "Name": "載入中...", "Tag": "無"}]
+# 🟢 您的完整預設名單
+DEFAULT_ROSTER = [
+    {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
+    {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
+    {"Category": "官員", "Name": "馬翔麟", "Tag": "宿"},
+    {"Category": "左班", "Name": "卓士傑", "Tag": "宿"},
+    {"Category": "左班", "Name": "呂培民", "Tag": "散"},
+    {"Category": "左班", "Name": "廖友智", "Tag": "散"},
+    {"Category": "左班", "Name": "陳怡民", "Tag": "宿"},
+    {"Category": "左班", "Name": "洪靚茜", "Tag": "散"},
+    {"Category": "左班", "Name": "吳枚芷", "Tag": "宿"},
+    {"Category": "左班", "Name": "莊沛倫", "Tag": "宿"},
+    {"Category": "左班", "Name": "李沿諭", "Tag": "宿"},
+    {"Category": "左班", "Name": "簡俊昇", "Tag": "宿"},
+    {"Category": "左班", "Name": "林冠中", "Tag": "宿"},
+    {"Category": "左班", "Name": "范曉萱", "Tag": "散"},
+    {"Category": "左班", "Name": "劉頂昱", "Tag": "宿"},
+    {"Category": "左班", "Name": "劉正誼", "Tag": "宿"},
+    {"Category": "左班", "Name": "林佳玄", "Tag": "散"},
+    {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
+    {"Category": "左班", "Name": "溫亞晉", "Tag": "宿"},
+    {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
+    {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
+    {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
+    {"Category": "右班", "Name": "陳泰均", "Tag": "宿"},
+    {"Category": "右班", "Name": "蔡宗穎", "Tag": "宿"},
+    {"Category": "右班", "Name": "黃泰洪", "Tag": "宿"},
+    {"Category": "右班", "Name": "蔡詩濡", "Tag": "宿"},
+    {"Category": "右班", "Name": "羅榆琇", "Tag": "宿"},
+    {"Category": "右班", "Name": "李意婷", "Tag": "宿"},
+    {"Category": "右班", "Name": "湯頂瑤", "Tag": "散"},
+    {"Category": "右班", "Name": "曾夢婷", "Tag": "宿"},
+    {"Category": "右班", "Name": "姜富議", "Tag": "宿"},
+    {"Category": "右班", "Name": "毛品堯", "Tag": "散"},
+    {"Category": "右班", "Name": "林興良", "Tag": "散"},
+    {"Category": "右班", "Name": "傅奕翔", "Tag": "宿"},
+    {"Category": "右班", "Name": "韓政叡", "Tag": "宿"},
+    {"Category": "右班", "Name": "湯恩宇", "Tag": "散"},
+    {"Category": "右班", "Name": "詹燦宇", "Tag": "散"},
+    {"Category": "右班", "Name": "伍諾亞", "Tag": "散"},
+    {"Category": "義務役", "Name": "張育勝", "Tag": "散"},
+    {"Category": "義務役", "Name": "夏文凱", "Tag": "散"},
+    {"Category": "義務役", "Name": "張朕中", "Tag": "散"},
+]
 
 def get_taiwan_time():
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).replace(tzinfo=None)
@@ -169,15 +200,23 @@ def get_taiwan_time():
 def load_data():
     try:
         df = conn.read(ttl=0)
+        # 🟢 邏輯：如果資料庫是空的，或沒有欄位，就直接寫入上面的預設名單
         if df is None or df.empty or "Name" not in df.columns:
             df = pd.DataFrame(DEFAULT_ROSTER)
             df["Schedule"] = "[]"
+            # 寫入雲端
+            conn.update(data=df)
             return df
+        
+        # 保護舊資料
         if "Schedule" not in df.columns: df["Schedule"] = "[]"
         if "Tag" not in df.columns: df["Tag"] = "無"
         return df.fillna("")
     except:
-        return pd.DataFrame(columns=["Category", "Name", "Tag", "Schedule"])
+        # 萬一連線失敗，至少先顯示預設名單
+        df = pd.DataFrame(DEFAULT_ROSTER)
+        df["Schedule"] = "[]"
+        return df
 
 def save_data(df):
     try:
@@ -274,7 +313,6 @@ def parse_multi_incident_input(text_input, current_df):
                 if not isinstance(old_schedule, list): old_schedule = []
                 
                 new_event = {"start": start_dt.isoformat(), "end": end_dt.isoformat(), "reason": reason}
-                # 簡易去重
                 if not any(e['start'] == new_event['start'] and e['end'] == new_event['end'] for e in old_schedule):
                     old_schedule.append(new_event)
                     old_schedule.sort(key=lambda x: x['start'])
@@ -361,7 +399,7 @@ with tab1:
         current_present = total_should - current_absent
         reason_counts = Counter(leave_reasons)
         
-        # 🟢 修正後的統計看板 (移除特別統計框框)
+        # 統計看板
         stats_html = f"""
         <div class="stats-container">
             <div style="font-size: 1.2rem; font-weight: bold; color: #FFF; margin-bottom: 10px;">
@@ -374,13 +412,10 @@ with tab1:
             </div>
             <div style="display:flex; flex-wrap:wrap;">
         """
-        # 顯示各類假別
         for r, c in reason_counts.items():
             stats_html += f'<div class="stat-item">{r}: <b style="color:#FFF">{c}</b></div>'
-        
         if not reason_counts:
             stats_html += '<div class="stat-item">目前全員在營</div>'
-            
         stats_html += "</div></div>"
         
         st.markdown(stats_html, unsafe_allow_html=True)
@@ -408,7 +443,6 @@ with tab1:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Popover (隱形按鈕)
                     with st.popover(f"管理 {row['Name']}"):
                         st.write(f"⚙️ **{row['Name']} 行程管理**")
                         try:
@@ -486,10 +520,13 @@ with st.sidebar:
                     save_data(pd.concat([raw_df, pd.DataFrame([{"Category": nc, "Name": nn, "Tag": nt, "Schedule": "[]"}])], ignore_index=True))
                     st.rerun()
     st.divider()
-    with st.expander("🔴 危險操作"):
+    with st.expander("🔴 危險操作 (重置)"):
         if st.button("🧹 清空所有假單"):
             raw_df['Schedule'] = "[]"
             save_data(raw_df); st.rerun()
-        if st.button("🗑️ 清空所有人員", type="primary"):
+        st.warning("👇 若人員名單錯誤，請點此按鈕，系統會刪除舊資料並自動載入【預設完整名單】。")
+        if st.button("🗑️ 刪除全部並載入預設名單", type="primary"):
+            # 存入空資料表，讓下次 load_data 自動填入 DEFAULT_ROSTER
             save_data(pd.DataFrame(columns=["Category", "Name", "Tag", "Schedule"]))
+            time.sleep(1)
             st.rerun()
