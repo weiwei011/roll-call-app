@@ -13,7 +13,6 @@ from collections import Counter
 LOGIN_PASSWORD = "1234"  # <--- 密碼
 
 def check_password():
-    """簡單的密碼驗證機制"""
     def password_entered():
         if st.session_state["password"] == LOGIN_PASSWORD:
             st.session_state["password_correct"] = True
@@ -138,7 +137,7 @@ def load_data():
         if df is None or df.empty or "Name" not in df.columns:
             df = pd.DataFrame(DEFAULT_ROSTER)
             df["Schedule"] = "[]"
-            conn.update(data=df)
+            # 注意：這裡不主動 update，除非使用者有操作，避免覆蓋舊資料
             return df
         
         # 2. 自動升級：若缺少 Schedule 欄位，自動補上 (保護舊資料)
@@ -168,9 +167,6 @@ raw_df = load_data()
 # 核心邏輯 A：解析人員狀態 (Status)
 # ------------------------------------------
 def get_person_status(schedule_json):
-    """
-    解析 JSON 排程，回傳：(狀態代碼, 原因, 顯示文字, 當前事件物件)
-    """
     now = get_taiwan_time()
     try:
         events = json.loads(str(schedule_json))
@@ -218,7 +214,6 @@ def get_person_status(schedule_json):
 # 核心邏輯 B：多重事故批次解析
 # ------------------------------------------
 def parse_multi_incident_input(text_input, current_df):
-    """解析 名字+多行時間 的輸入格式"""
     lines = text_input.strip().split('\n')
     updated_count = 0
     now = get_taiwan_time()
@@ -230,7 +225,6 @@ def parse_multi_incident_input(text_input, current_df):
         line = line.strip()
         if not line: continue
         
-        # 1. 判斷是否為名字行
         is_name_line = False
         found_name_in_line = None
         for name in current_df['Name'].values:
@@ -241,33 +235,27 @@ def parse_multi_incident_input(text_input, current_df):
         
         if is_name_line:
             current_target_name = found_name_in_line
-            # 去除名字，若後面還有字則繼續解析
             line = line.replace(current_target_name, "").strip()
             if not line: continue 
 
         if not current_target_name: continue
 
-        # 2. 解析時間 (支援 11/19 1600-11/21 1600 理由)
         pattern = r"(\d{1,2})[./](\d{1,2})\s*(\d{4})\s*[-~至]\s*(\d{1,2})[./](\d{1,2})\s*(\d{4})(.*)"
         match = re.search(pattern, line)
         
         if match:
             m1, d1, t1, m2, d2, t2, reason_raw = match.groups()
-            
-            # 跨年邏輯
             y1 = current_year + 1 if (now.month >= 11 and int(m1) <= 2) else current_year
             y2 = current_year + 1 if (now.month >= 11 and int(m2) <= 2) else current_year
             
             try:
                 start_dt = datetime.datetime.strptime(f"{y1}-{m1}-{d1} {t1}", "%Y-%m-%d %H%M")
                 end_dt = datetime.datetime.strptime(f"{y2}-{m2}-{d2} {t2}", "%Y-%m-%d %H%M")
-                
                 if end_dt < start_dt: end_dt = end_dt.replace(year=end_dt.year + 1)
 
                 reason = reason_raw.strip()
                 if not reason: reason = "休假"
                 
-                # 寫入 Schedule
                 idx = current_df[current_df['Name'] == current_target_name].index[0]
                 try:
                     old_schedule = json.loads(current_df.at[idx, 'Schedule'])
@@ -281,7 +269,6 @@ def parse_multi_incident_input(text_input, current_df):
                     "created_at": now.isoformat()
                 }
                 
-                # 簡單去重
                 is_duplicate = False
                 for evt in old_schedule:
                     if evt['start'] == new_event['start'] and evt['end'] == new_event['end']:
@@ -297,26 +284,16 @@ def parse_multi_incident_input(text_input, current_df):
     return current_df, updated_count
 
 # ------------------------------------------
-# 核心邏輯 C：智慧放假 (支援多選疊加)
+# 核心邏輯 C：智慧放假
 # ------------------------------------------
 def apply_routine_leave(target_categories_list, current_df):
-    """
-    針對選定的「多個類別」 (list)，依照標籤自動給假：
-    Tag="散" -> 當日 1700 - 2359
-    Tag="宿" -> 當日 1700 - 隔日 0730
-    """
     count = 0
     now = get_taiwan_time()
     today_date = now.date()
-    
-    start_time = datetime.datetime.combine(today_date, datetime.time(17, 0)) # 17:00
+    start_time = datetime.datetime.combine(today_date, datetime.time(17, 0))
     
     for i, row in current_df.iterrows():
-        # 1. 檢查是否在選定名單內
-        if row['Category'] not in target_categories_list:
-            continue
-        
-        # 2. 判斷 Tag
+        if row['Category'] not in target_categories_list: continue
         tag = row.get('Tag', '')
         if tag == '散':
             end_time = datetime.datetime.combine(today_date, datetime.time(23, 59))
@@ -325,10 +302,8 @@ def apply_routine_leave(target_categories_list, current_df):
             tomorrow = today_date + datetime.timedelta(days=1)
             end_time = datetime.datetime.combine(tomorrow, datetime.time(7, 30))
             reason = "外宿"
-        else:
-            continue
+        else: continue
 
-        # 3. 衝突檢查
         try:
             schedule = json.loads(row['Schedule'])
             if not isinstance(schedule, list): schedule = []
@@ -338,30 +313,21 @@ def apply_routine_leave(target_categories_list, current_df):
         for event in schedule:
             e_start = datetime.datetime.fromisoformat(event['start'])
             e_end = datetime.datetime.fromisoformat(event['end'])
-            # 若時間重疊則不放
             if max(start_time, e_start) < min(end_time, e_end):
                 is_free = False
                 break
         
         if is_free:
-            new_event = {
-                "start": start_time.isoformat(),
-                "end": end_time.isoformat(),
-                "reason": reason,
-                "created_at": now.isoformat()
-            }
+            new_event = {"start": start_time.isoformat(), "end": end_time.isoformat(), "reason": reason, "created_at": now.isoformat()}
             schedule.append(new_event)
             schedule.sort(key=lambda x: x['start'])
             current_df.at[i, 'Schedule'] = json.dumps(schedule, ensure_ascii=False)
             count += 1
-            
     return current_df, count
 
 def apply_batch_leave_manual(categories, start_dt, end_dt, reason, current_df):
-    """手動自訂時間的放假 (給 '進階功能' 用)"""
     count = 0
     now = get_taiwan_time()
-    
     for i, row in current_df.iterrows():
         if row['Category'] not in categories: continue
         try:
@@ -376,7 +342,6 @@ def apply_batch_leave_manual(categories, start_dt, end_dt, reason, current_df):
             if max(start_dt, e_start) < min(end_dt, e_end):
                 is_free = False
                 break
-        
         if is_free:
             new_event = {"start": start_dt.isoformat(), "end": end_dt.isoformat(), "reason": reason, "created_at": now.isoformat()}
             schedule.append(new_event)
@@ -400,7 +365,6 @@ with tab1:
         st.rerun()
 
     if not raw_df.empty:
-        # 統計
         total_should = len(raw_df)
         leave_reasons = []
         left_conscript_leave_count = 0
@@ -409,7 +373,6 @@ with tab1:
             status, reason, _, _ = get_person_status(row['Schedule'])
             if status == "leave":
                 leave_reasons.append(reason)
-                # 統計左班+義務役的休假數
                 if row['Category'] in ["左班", "義務役"]:
                     left_conscript_leave_count += 1
         
@@ -417,13 +380,14 @@ with tab1:
         current_present = total_should - current_absent
         reason_counts = Counter(leave_reasons)
         
-        # 統計看板
+        # --- 🟢 更新後的統計看板 (加入應到) ---
         st.markdown(f"""
         <div class="stats-container">
             <div class="stats-title">📊 即時現員統計</div>
-            <div style="margin-bottom: 15px; font-size: 1rem; color: #D6CEC3;">
-                <span style="color:#8FBC8F; font-weight:bold;">🌲 實到：{current_present}</span> &nbsp;|&nbsp; 
-                <span style="color:#D99E6B; font-weight:bold;">🏠 休假總數：{current_absent}</span>
+            <div style="margin-bottom: 15px; font-size: 1.1rem; color: #E3DED5;">
+                <span style="color:#C2B8AD;">應到：<b>{total_should}</b></span> &nbsp;&nbsp;|&nbsp;&nbsp;
+                <span style="color:#8FBC8F;">🌲 實到：<b>{current_present}</b></span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <span style="color:#D99E6B;">🏠 休假：<b>{current_absent}</b></span>
             </div>
             <div style="background:#4A4540; padding:8px; border-radius:8px; margin-bottom:10px; border:1px solid #D99E6B;">
                 🔥 <b>左班+義務役 休假人數：{left_conscript_leave_count} 員</b>
@@ -434,7 +398,6 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
         
-        # 人員卡片
         cats = ["官員", "左班", "右班", "義務役"]
         for category in cats:
             group_df = raw_df[raw_df['Category'] == category]
@@ -485,14 +448,6 @@ with tab2:
     st.info("""
     **💡 批次輸入說明**
     輸入姓名後換行，接著輸入多行時間。系統會自動解析。
-    
-    **範例：**
-    曾夢婷
-    11/19 1600-11/21 1600 慰休
-    11/24 0730-11/25 0730 補假
-    
-    林子祥
-    11/20 1800-11/21 0730 外散
     """)
     batch_text = st.text_area("在此貼上排程", height=300)
     
@@ -506,13 +461,11 @@ with tab2:
                 time.sleep(1)
                 st.rerun()
             else:
-                st.warning("無有效更新 (請檢查格式)")
+                st.warning("無有效更新")
 
-# --- Tab 3: 智慧放假 (疊加版) ---
+# --- Tab 3: 智慧放假 ---
 with tab3:
-    st.header("🚀 智慧一鍵放假 (外散/宿)")
-    st.info("💡 說明：勾選要放假的群組，系統會依據人員標籤 (散/宿) 自動設定今日 17:00 起的假單。")
-    
+    st.header("🚀 智慧一鍵放假")
     today_str = datetime.date.today().strftime("%m/%d")
     st.markdown(f"""
     <div style="background-color:#2D2A26; padding:15px; border-radius:10px; border:1px solid #555; margin-bottom:20px;">
@@ -526,13 +479,10 @@ with tab3:
 
     with st.container(border=True):
         st.subheader("👇 步驟：選擇對象並執行")
-        
-        # 多選選單
         selected_groups = st.multiselect(
             "請勾選要放假的班隊 (可複選疊加)",
             options=["左班", "右班", "義務役", "官員"],
-            default=["左班", "義務役"],
-            help="選中的群組，其無事故人員將會一起被加入放假行程"
+            default=["左班", "義務役"]
         )
         
         if st.button("⚡ 執行放假 (依選定對象)", type="primary", use_container_width=True):
@@ -543,8 +493,7 @@ with tab3:
                 if count > 0:
                     save_data(new_df)
                     st.balloons()
-                    groups_str = "、".join(selected_groups)
-                    st.success(f"成功！已將 [{groups_str}] 共 {count} 員設定為外散/宿。")
+                    st.success(f"成功！已將 {count} 員設定為外散/宿。")
                     time.sleep(2)
                     st.rerun()
                 else:
@@ -553,17 +502,14 @@ with tab3:
     st.divider()
     with st.expander("🛠️ 進階：自訂特定時間放假"):
         with st.form("custom_leave"):
-            st.write("設定非例行性放假")
             cc1, cc2 = st.columns(2)
             tg_cats = cc1.multiselect("對象", ["左班", "右班", "義務役", "官員"], default=["左班"])
             cus_r = cc2.text_input("假別", "榮譽假")
-            
             cd1, cd2 = st.columns(2)
             ds = cd1.date_input("開始", datetime.date.today())
             ts = cd1.time_input("時間", datetime.time(8, 0))
             de = cd2.date_input("結束", datetime.date.today())
             te = cd2.time_input("時間", datetime.time(21, 0))
-            
             if st.form_submit_button("執行自訂"):
                 dts = datetime.datetime.combine(ds, ts)
                 dte = datetime.datetime.combine(de, te)
@@ -571,14 +517,10 @@ with tab3:
                 elif not tg_cats: st.error("請選對象")
                 else:
                     ndf, c = apply_batch_leave_manual(tg_cats, dts, dte, cus_r, raw_df.copy())
-                    if c > 0:
-                        save_data(ndf)
-                        st.success(f"已更新 {c} 筆")
-                        time.sleep(1)
-                        st.rerun()
+                    if c > 0: save_data(ndf); st.success(f"已更新 {c} 筆"); time.sleep(1); st.rerun()
                     else: st.warning("無變更")
 
-# 側邊欄：新增人員
+# --- 側邊欄：新增人員與危險操作 ---
 with st.sidebar:
     st.divider()
     with st.expander("➕ 新增人員"):
@@ -591,3 +533,26 @@ with st.sidebar:
                     new_row = pd.DataFrame([{"Category": nc, "Name": nn, "Tag": nt, "Schedule": "[]"}])
                     save_data(pd.concat([raw_df, new_row], ignore_index=True))
                     st.rerun()
+
+    # 🟢 補回危險操作區 (刪除功能)
+    st.divider()
+    with st.expander("🔴 危險操作 (刪除/重置)"):
+        st.warning("⚠️ 此區域操作無法復原，請小心！")
+        
+        # 功能1: 清除所有假單 (讓所有人變回在營)
+        if st.button("🧹 清除所有假單 (全員歸隊)", use_container_width=True):
+            if not raw_df.empty:
+                raw_df['Schedule'] = "[]" # 清空所有人的 Schedule
+                save_data(raw_df)
+                st.toast("已清空所有假單，全員歸隊！")
+                time.sleep(1)
+                st.rerun()
+
+        # 功能2: 刪除所有資料 (清空名單)
+        if st.button("🗑️ 刪除所有人員資料", type="primary", use_container_width=True):
+            # 建立一個只剩標題的空 DataFrame
+            empty_df = pd.DataFrame(columns=["Category", "Name", "Tag", "Schedule"])
+            save_data(empty_df)
+            st.toast("已清空所有人員！")
+            time.sleep(1)
+            st.rerun()
