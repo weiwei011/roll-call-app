@@ -114,14 +114,49 @@ if not check_password():
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 範例名單 (僅在資料庫完全為空時使用)
+# 📋 完整預設名單 (依照您的要求設定)
 DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
+    {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
+    {"Category": "官員", "Name": "馬翔麟", "Tag": "宿"},
     {"Category": "左班", "Name": "卓士傑", "Tag": "宿"},
     {"Category": "左班", "Name": "呂培民", "Tag": "散"},
+    {"Category": "左班", "Name": "廖友智", "Tag": "散"},
+    {"Category": "左班", "Name": "陳怡民", "Tag": "宿"},
+    {"Category": "左班", "Name": "洪靚茜", "Tag": "散"},
+    {"Category": "左班", "Name": "吳枚芷", "Tag": "宿"},
+    {"Category": "左班", "Name": "莊沛倫", "Tag": "宿"},
+    {"Category": "左班", "Name": "李沿諭", "Tag": "宿"},
+    {"Category": "左班", "Name": "簡俊昇", "Tag": "宿"},
+    {"Category": "左班", "Name": "林冠中", "Tag": "宿"},
+    {"Category": "左班", "Name": "范曉萱", "Tag": "散"},
+    {"Category": "左班", "Name": "劉頂昱", "Tag": "宿"},
+    {"Category": "左班", "Name": "劉正誼", "Tag": "宿"},
+    {"Category": "左班", "Name": "林佳玄", "Tag": "散"},
+    {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
+    {"Category": "左班", "Name": "溫亞晉", "Tag": "宿"},
+    {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
     {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
+    {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
+    {"Category": "右班", "Name": "陳泰均", "Tag": "宿"},
+    {"Category": "右班", "Name": "蔡宗穎", "Tag": "宿"},
+    {"Category": "右班", "Name": "黃泰洪", "Tag": "宿"},
+    {"Category": "右班", "Name": "蔡詩濡", "Tag": "宿"},
+    {"Category": "右班", "Name": "羅榆琇", "Tag": "宿"},
+    {"Category": "右班", "Name": "李意婷", "Tag": "宿"},
     {"Category": "右班", "Name": "湯頂瑤", "Tag": "散"},
-    {"Category": "義務役", "Name": "林子祥", "Tag": "散"},
+    {"Category": "右班", "Name": "曾夢婷", "Tag": "宿"},
+    {"Category": "右班", "Name": "姜富議", "Tag": "宿"},
+    {"Category": "右班", "Name": "毛品堯", "Tag": "散"},
+    {"Category": "右班", "Name": "林興良", "Tag": "散"},
+    {"Category": "右班", "Name": "傅奕翔", "Tag": "宿"},
+    {"Category": "右班", "Name": "韓政叡", "Tag": "宿"},
+    {"Category": "右班", "Name": "湯恩宇", "Tag": "散"},
+    {"Category": "右班", "Name": "詹燦宇", "Tag": "散"},
+    {"Category": "右班", "Name": "伍諾亞", "Tag": "散"},
+    {"Category": "義務役", "Name": "張育勝", "Tag": "散"},
+    {"Category": "義務役", "Name": "夏文凱", "Tag": "散"},
+    {"Category": "義務役", "Name": "張朕中", "Tag": "散"}
 ]
 
 def get_taiwan_time():
@@ -129,18 +164,19 @@ def get_taiwan_time():
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).replace(tzinfo=None)
 
 def load_data():
-    """讀取資料，並具備自動修復欄位的功能"""
+    """讀取資料，並具備自動初始化功能"""
     try:
         df = conn.read(ttl=0)
         
-        # 1. 若資料庫全空，載入預設值
+        # 1. 若資料庫全空，或是欄位遺失，則載入 DEFAULT_ROSTER 並寫入雲端
         if df is None or df.empty or "Name" not in df.columns:
             df = pd.DataFrame(DEFAULT_ROSTER)
             df["Schedule"] = "[]"
-            # 注意：這裡不主動 update，除非使用者有操作，避免覆蓋舊資料
+            # 自動寫入雲端，完成初始化
+            conn.update(data=df)
             return df
         
-        # 2. 自動升級：若缺少 Schedule 欄位，自動補上 (保護舊資料)
+        # 2. 自動升級：若舊資料缺少 Schedule 欄位，自動補上
         if "Schedule" not in df.columns:
             df["Schedule"] = "[]"
             
@@ -151,7 +187,10 @@ def load_data():
         return df.fillna("")
     except Exception as e:
         st.error(f"⚠️ 資料庫讀取錯誤: {e}")
-        return pd.DataFrame(columns=["Category", "Name", "Tag", "Schedule"])
+        # 萬一連線失敗，至少顯示預設名單讓介面可以跑
+        df_fallback = pd.DataFrame(DEFAULT_ROSTER)
+        df_fallback["Schedule"] = "[]"
+        return df_fallback
 
 def save_data(df):
     """回寫資料到 Google Sheets"""
@@ -380,7 +419,7 @@ with tab1:
         current_present = total_should - current_absent
         reason_counts = Counter(leave_reasons)
         
-        # --- 🟢 更新後的統計看板 (加入應到) ---
+        # --- 統計看板 (含應到) ---
         st.markdown(f"""
         <div class="stats-container">
             <div class="stats-title">📊 即時現員統計</div>
@@ -534,25 +573,25 @@ with st.sidebar:
                     save_data(pd.concat([raw_df, new_row], ignore_index=True))
                     st.rerun()
 
-    # 🟢 補回危險操作區 (刪除功能)
+    # 危險操作區
     st.divider()
     with st.expander("🔴 危險操作 (刪除/重置)"):
         st.warning("⚠️ 此區域操作無法復原，請小心！")
         
-        # 功能1: 清除所有假單 (讓所有人變回在營)
+        # 功能1: 清除所有假單
         if st.button("🧹 清除所有假單 (全員歸隊)", use_container_width=True):
             if not raw_df.empty:
-                raw_df['Schedule'] = "[]" # 清空所有人的 Schedule
+                raw_df['Schedule'] = "[]" 
                 save_data(raw_df)
                 st.toast("已清空所有假單，全員歸隊！")
                 time.sleep(1)
                 st.rerun()
 
-        # 功能2: 刪除所有資料 (清空名單)
+        # 功能2: 刪除所有資料 (這一步會觸發重新匯入您的新名單)
         if st.button("🗑️ 刪除所有人員資料", type="primary", use_container_width=True):
             # 建立一個只剩標題的空 DataFrame
             empty_df = pd.DataFrame(columns=["Category", "Name", "Tag", "Schedule"])
             save_data(empty_df)
-            st.toast("已清空所有人員！")
+            st.toast("已清空！請刷新頁面以匯入預設名單。")
             time.sleep(1)
             st.rerun()
