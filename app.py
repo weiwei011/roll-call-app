@@ -41,7 +41,7 @@ st.markdown("""
     
     /* 1. 背景與主色調 */
     .stApp { 
-        background-color: #050505; /* 極致黑 */
+        background-color: #050505; 
         color: #E0E0E0; 
         background-image: linear-gradient(to bottom, #050505, #141414);
     }
@@ -53,33 +53,33 @@ st.markdown("""
     }
     section[data-testid="stSidebar"] * { color: #AAA !important; }
     
-    /* 3. 輸入框與選單 (深邃風格) */
+    /* 3. 輸入框與選單 */
     div[data-baseweb="input"], div[data-baseweb="select"] > div, div[data-baseweb="base-input"], textarea {
         background-color: #1A1A1A !important;
         border: 1px solid #333 !important;
-        color: #00FFC2 !important; /* 螢光青文字 */
+        color: #00FFC2 !important; 
         border-radius: 8px !important;
     }
     
-    /* 4. 人員卡片 (霓虹玻璃質感) */
+    /* 4. 人員卡片 */
     .person-card { 
         padding: 16px; 
         border-radius: 12px; 
         margin-bottom: 14px; 
-        background-color: #161618; /* 深灰底 */
+        background-color: #161618; 
         border: 1px solid #333; 
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
         transition: all 0.3s ease;
     }
     .person-card:hover { 
         transform: translateY(-3px); 
-        box-shadow: 0 0 15px rgba(0, 255, 194, 0.1); /*微微發光*/
+        box-shadow: 0 0 15px rgba(0, 255, 194, 0.1);
         border-color: #555;
     }
     
-    /* 5. 狀態指示燈 (高飽和度霓虹色) */
-    .status-camp { border-left: 4px solid #39FF14; } /* 霓虹綠 */
-    .status-leave { border-left: 4px solid #FF3131; } /* 霓虹紅 */
+    /* 5. 狀態指示燈 */
+    .status-camp { border-left: 4px solid #39FF14; } 
+    .status-leave { border-left: 4px solid #FF3131; } 
     
     .card-header { display: flex; justify-content: space-between; align-items: center; }
     .card-name { font-size: 1.3rem; font-weight: 700; color: #FFF; letter-spacing: 1px; }
@@ -92,7 +92,7 @@ st.markdown("""
         border: 1px solid #555; vertical-align: middle;
     }
     
-    /* 7. 統計看板 (儀表板風格) */
+    /* 7. 統計看板 */
     .stats-container {
         background: linear-gradient(135deg, #1A1A1A 0%, #0D0D0D 100%);
         padding: 20px; 
@@ -103,7 +103,6 @@ st.markdown("""
         position: relative;
         overflow: hidden;
     }
-    /* 裝飾線條 */
     .stats-container::before {
         content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
         background: linear-gradient(90deg, #FF3131, #39FF14, #00FFC2);
@@ -120,7 +119,6 @@ st.markdown("""
         background-color: #222 !important; 
         color: #EEE !important; 
         border: 1px solid #444 !important;
-        transition: 0.2s;
     }
     .stButton button:hover {
         border-color: #00FFC2 !important;
@@ -133,8 +131,7 @@ st.markdown("""
         color: #00FFC2 !important;
     }
 
-    /* 9. 🚨 關鍵修正：管理按鈕 (Popover) 隱身術 */
-    /* 讓 Popover 的觸發按鈕變成深色、透明，融入背景 */
+    /* 9. Popover 按鈕隱身 */
     [data-testid="stPopover"] > div > button {
         background-color: transparent !important;
         border: 1px solid #444 !important;
@@ -148,7 +145,7 @@ st.markdown("""
         background-color: #222 !important;
     }
 
-    /* 左上角箭頭 (霓虹橘) */
+    /* 左上角箭頭 */
     [data-testid="stSidebarCollapsedControl"] {
         background-color: #111 !important; border: 1px solid #FF5F1F !important;
         color: #FF5F1F !important;
@@ -211,7 +208,6 @@ def get_person_status(schedule_json):
     if current_event:
         s_str = datetime.datetime.fromisoformat(current_event['start']).strftime('%d日 %H%M')
         reason = current_event.get('reason', '休假')
-        # 霓虹紅圓點
         return "leave", reason, f"🔴 {reason} ({s_str}~)", current_event
 
     future_event = None
@@ -229,7 +225,6 @@ def get_person_status(schedule_json):
     if future_event:
         s_str = datetime.datetime.fromisoformat(future_event['start']).strftime('%d日 %H%M')
         r = future_event.get('reason', '')
-        # 霓虹綠圓點
         return "camp", "在營", f"🟢 在營 (預: {s_str} {r})", None
         
     return "camp", "在營", "🟢 在營", None
@@ -356,35 +351,30 @@ with tab1:
     if not raw_df.empty:
         total_should = len(raw_df)
         leave_reasons = []
-        left_conscript_leave_count = 0
         
         for _, row in raw_df.iterrows():
             status, reason, _, _ = get_person_status(row['Schedule'])
             if status == "leave":
                 leave_reasons.append(reason)
-                if row['Category'] in ["左班", "義務役"]:
-                    left_conscript_leave_count += 1
         
         current_absent = len(leave_reasons)
         current_present = total_should - current_absent
         reason_counts = Counter(leave_reasons)
         
-        # 修正後的 HTML 結構 (解決 div 錯誤)
+        # 🟢 修正後的統計看板 (移除特別統計框框)
         stats_html = f"""
         <div class="stats-container">
             <div style="font-size: 1.2rem; font-weight: bold; color: #FFF; margin-bottom: 10px;">
                 📡 即時戰情看板
             </div>
-            <div style="margin-bottom: 15px; font-size: 1rem; color: #BBB;">
+            <div style="margin-bottom: 20px; font-size: 1rem; color: #BBB;">
                 <span style="color:#888;">應到: <b>{total_should}</b></span> &nbsp;|&nbsp; 
                 <span style="color:#39FF14;">🟢 實到: <b>{current_present}</b></span> &nbsp;|&nbsp; 
                 <span style="color:#FF3131;">🔴 休假: <b>{current_absent}</b></span>
             </div>
-            <div style="background:rgba(255, 95, 31, 0.1); padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #FF5F1F; color:#FF5F1F;">
-                🔥 <b>左班+義務役 休假：{left_conscript_leave_count} 員</b>
-            </div>
             <div style="display:flex; flex-wrap:wrap;">
         """
+        # 顯示各類假別
         for r, c in reason_counts.items():
             stats_html += f'<div class="stat-item">{r}: <b style="color:#FFF">{c}</b></div>'
         
@@ -418,7 +408,7 @@ with tab1:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Popover (現在是隱形按鈕)
+                    # Popover (隱形按鈕)
                     with st.popover(f"管理 {row['Name']}"):
                         st.write(f"⚙️ **{row['Name']} 行程管理**")
                         try:
