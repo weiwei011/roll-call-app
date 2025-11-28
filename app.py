@@ -10,7 +10,7 @@ from collections import Counter
 # ==========================================
 # 🔐 安全登入系統
 # ==========================================
-LOGIN_PASSWORD = "1234" 
+LOGIN_PASSWORD = "1111" 
 
 def check_password():
     def password_entered():
