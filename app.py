@@ -10,7 +10,7 @@ from collections import Counter
 # ==========================================
 # 🔐 安全登入系統
 # ==========================================
-LOGIN_PASSWORD = "1111" 
+LOGIN_PASSWORD = "1111"
 
 def check_password():
     def password_entered():
@@ -611,13 +611,11 @@ with st.sidebar:
                     st.rerun()
     st.divider()
     with st.expander("🔴 危險操作 (重置)"):
-        with st.expander("🔴 危險操作 (重置)"):
         if st.button("🧹 清空所有假單"):
             # 1. 清空 APP 的排程 (D欄)
             raw_df['Schedule'] = "[]"
             
             # 2. 同步清空 Line 機器人的欄位 (E, F, G欄)
-            # 必須把這些欄位設為空字串，才算是刪除
             raw_df['ManualStart'] = ""
             raw_df['ManualEnd'] = ""
             raw_df['ManualReason'] = ""
@@ -625,12 +623,6 @@ with st.sidebar:
             save_data(raw_df)
             st.rerun()
             
-        st.warning("👇 若人員名單錯誤，請點此按鈕，系統會刪除舊資料並自動載入【預設完整名單】。")
-        if st.button("🗑️ 刪除全部並載入預設名單", type="primary"):
-            # 存入空資料表，讓下次 load_data 自動填入 DEFAULT_ROSTER
-            save_data(pd.DataFrame(columns=["Category", "Name", "Tag", "Schedule"]))
-            time.sleep(1)
-            st.rerun()
         st.warning("👇 若人員名單錯誤，請點此按鈕，系統會刪除舊資料並自動載入【預設完整名單】。")
         if st.button("🗑️ 刪除全部並載入預設名單", type="primary"):
             # 存入空資料表，讓下次 load_data 自動填入 DEFAULT_ROSTER
