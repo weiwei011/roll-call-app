@@ -227,11 +227,50 @@ def save_data(df):
 
 raw_df = load_data()
 
-# --- 邏輯 A: 狀態解析 ---
-def get_person_status(schedule_json):
+# ==========================================
+# 邏輯 A: 全能相容模式 (同時支援 Line 機器人 & APP 輸入)
+# ==========================================
+def get_person_status(row):
     now = get_taiwan_time()
-    try: events = json.loads(str(schedule_json))
-    except: events = []
+    
+    # ---------------------------------------------------
+    # 1. 第一關：檢查 Line 機器人寫入的欄位 (E, F 欄)
+    # ---------------------------------------------------
+    m_start = row.get('ManualStart')
+    m_end = row.get('ManualEnd')
+    m_reason = row.get('ManualReason')
+    
+    # 判斷 E 和 F 欄是否有資料 (過濾掉空值、NaN)
+    if pd.notna(m_start) and str(m_start).strip() != "" and \
+       pd.notna(m_end) and str(m_end).strip() != "":
+        try:
+            # 轉換文字時間為標準時間格式
+            ms_dt = pd.to_datetime(m_start).to_pydatetime()
+            me_dt = pd.to_datetime(m_end).to_pydatetime()
+            
+            # 判斷目前時間是否在休假期間內
+            if ms_dt <= now <= me_dt:
+                # 處理理由：防呆
+                if pd.isna(m_reason) or str(m_reason).strip() == "":
+                    final_reason = "Line假單"  
+                else:
+                    final_reason = str(m_reason)
+                
+                s_str = ms_dt.strftime('%d日 %H%M')
+                # 回傳狀態：leave
+                return "leave", final_reason, f"🔴 {final_reason} ({s_str}~)", None
+        except:
+            pass # 如果時間格式爛掉，就裝作沒看到，繼續往下檢查
+
+    # ---------------------------------------------------
+    # 2. 第二關：檢查 APP 網頁寫入的 JSON (D 欄)
+    # ---------------------------------------------------
+    schedule_json = row.get('Schedule', '[]')
+    try: 
+        events = json.loads(str(schedule_json))
+    except: 
+        events = []
+    
     if not isinstance(events, list): events = []
     
     current_event = None
@@ -249,6 +288,9 @@ def get_person_status(schedule_json):
         reason = current_event.get('reason', '休假')
         return "leave", reason, f"🔴 {reason} ({s_str}~)", current_event
 
+    # ---------------------------------------------------
+    # 3. 第三關：檢查未來行程 (預告)
+    # ---------------------------------------------------
     future_event = None
     min_diff = float('inf')
     for event in events:
@@ -269,7 +311,7 @@ def get_person_status(schedule_json):
     return "camp", "在營", "🟢 在營", None
 
 # ==========================================
-# 修改後的邏輯 B: 軍用格式專用解析 (自動判斷年份、理由位置不拘)
+# 邏輯 B: 軍用格式專用解析 (自動判斷年份、理由位置不拘)
 # ==========================================
 def parse_multi_incident_input(text_input, current_df):
     lines = text_input.strip().split('\n')
@@ -366,6 +408,7 @@ def parse_multi_incident_input(text_input, current_df):
                 pass
 
     return current_df, updated_count
+
 # --- 邏輯 C: 智慧放假 ---
 def apply_routine_leave(target_cats, current_df):
     count = 0
@@ -436,7 +479,8 @@ with tab1:
         leave_reasons = []
         
         for _, row in raw_df.iterrows():
-            status, reason, _, _ = get_person_status(row['Schedule'])
+            # 🔴 重要修正：這裡傳入 row (整列資料)，而不是只傳 row['Schedule']
+            status, reason, _, _ = get_person_status(row)
             if status == "leave":
                 leave_reasons.append(reason)
         
@@ -474,7 +518,8 @@ with tab1:
             st.markdown(f"<h3 style='color:#00FFC2; border-bottom:1px solid #333; padding-bottom:5px;'>{category}</h3>", unsafe_allow_html=True)
             cols = st.columns(3)
             for i, (idx, row) in enumerate(group_df.iterrows()):
-                status_code, reason, status_text, curr_evt = get_person_status(row['Schedule'])
+                # 🔴 重要修正：這裡也改為傳入 row
+                status_code, reason, status_text, curr_evt = get_person_status(row)
                 css_class = "status-leave" if status_code == "leave" else "status-camp"
                 
                 with cols[i % 3]:
