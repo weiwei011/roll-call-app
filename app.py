@@ -268,57 +268,97 @@ def get_person_status(schedule_json):
         
     return "camp", "在營", "🟢 在營", None
 
-# --- 邏輯 B: 批次解析 ---
+# ==========================================
+# 修改後的邏輯 B: 超強批次解析 (支援理由在前、免年份)
+# ==========================================
 def parse_multi_incident_input(text_input, current_df):
     lines = text_input.strip().split('\n')
     updated_count = 0
     now = get_taiwan_time()
     current_year = now.year
-    current_target_name = None
-    
+
     for line in lines:
         line = line.strip()
         if not line: continue
         
-        is_name_line = False
-        found_name_in_line = None
-        for name in current_df['Name'].values:
-            if line == name or line.startswith(name): 
-                found_name_in_line = name
-                is_name_line = True
+        # 1. 先抓名字 (找到名字後把它從字串中拿掉)
+        target_name = None
+        target_idx = -1
+        
+        # 排序名字長度 (避免名字包含造成誤判，雖不常見但保險)
+        all_names = sorted(current_df['Name'].values, key=len, reverse=True)
+        
+        for name in all_names:
+            if name in line:
+                target_name = name
+                # 取得該員在 DataFrame 的索引
+                target_idx = current_df[current_df['Name'] == name].index[0]
+                # 將名字移除，剩下的就是 時間 + 理由
+                line = line.replace(name, "", 1).strip()
                 break
         
-        if is_name_line:
-            current_target_name = found_name_in_line
-            line = line.replace(current_target_name, "").strip()
-            if not line: continue 
+        if not target_name: continue
 
-        if not current_target_name: continue
-
-        pattern = r"(\d{1,2})[./](\d{1,2})\s*(\d{4})\s*[-~至]\s*(\d{1,2})[./](\d{1,2})\s*(\d{4})(.*)"
+        # 2. 抓取時間 (格式：月/日 時分)
+        # Regex 解釋: (月/日) (空格) (時分) (分隔符號 -~至) (月/日) (空格) (時分)
+        # 範例匹配: 11/28 1600-12/03 0730 或 11.28 1600 ~ 12.03 0730
+        pattern = r"(\d{1,2})[./](\d{1,2})\s+(\d{4})\s*[-~至]\s*(\d{1,2})[./](\d{1,2})\s+(\d{4})"
         match = re.search(pattern, line)
+        
         if match:
-            m1, d1, t1, m2, d2, t2, reason_raw = match.groups()
-            y1 = current_year + 1 if (now.month >= 11 and int(m1) <= 2) else current_year
-            y2 = current_year + 1 if (now.month >= 11 and int(m2) <= 2) else current_year
+            # 抓到了！
+            m1, d1, t1, m2, d2, t2 = match.groups()
+            
+            # 把抓到的時間字串從原本的一整行刪掉 -> 剩下的就是理由！
+            time_string = match.group(0)
+            reason_part = line.replace(time_string, "").strip()
+            
+            # 如果理由是空的，預設為 "休假"
+            reason = reason_part if reason_part else "休假"
+
+            # 3. 處理年份 (自動判斷跨年)
+            # 邏輯：如果現在11月，輸入的月份是1或2，那應該是明年
+            y1 = current_year
+            if now.month >= 11 and int(m1) <= 2:
+                y1 = current_year + 1
+            
+            y2 = current_year
+            if now.month >= 11 and int(m2) <= 2:
+                y2 = current_year + 1
+            
+            # 若起迄年份不同 (例如 12/31 ~ 1/2)，這邊做個簡單修正
+            if y2 < y1: y2 = y1 + 1
+
             try:
+                # 組合時間物件
                 start_dt = datetime.datetime.strptime(f"{y1}-{m1}-{d1} {t1}", "%Y-%m-%d %H%M")
                 end_dt = datetime.datetime.strptime(f"{y2}-{m2}-{d2} {t2}", "%Y-%m-%d %H%M")
-                if end_dt < start_dt: end_dt = end_dt.replace(year=end_dt.year + 1)
-                reason = reason_raw.strip() or "休假"
                 
-                idx = current_df[current_df['Name'] == current_target_name].index[0]
-                try: old_schedule = json.loads(current_df.at[idx, 'Schedule'])
+                # 防呆：如果你打錯，結束時間比開始時間早，自動幫你加一年
+                if end_dt < start_dt: 
+                    end_dt = end_dt.replace(year=end_dt.year + 1)
+                
+                # 4. 存入 JSON
+                try: old_schedule = json.loads(current_df.at[target_idx, 'Schedule'])
                 except: old_schedule = []
                 if not isinstance(old_schedule, list): old_schedule = []
                 
-                new_event = {"start": start_dt.isoformat(), "end": end_dt.isoformat(), "reason": reason}
+                new_event = {
+                    "start": start_dt.isoformat(), 
+                    "end": end_dt.isoformat(), 
+                    "reason": reason  # 這裡就會是 "事假"
+                }
+                
+                # 避免重複輸入完全一樣的行程
                 if not any(e['start'] == new_event['start'] and e['end'] == new_event['end'] for e in old_schedule):
                     old_schedule.append(new_event)
                     old_schedule.sort(key=lambda x: x['start'])
-                    current_df.at[idx, 'Schedule'] = json.dumps(old_schedule, ensure_ascii=False)
+                    current_df.at[target_idx, 'Schedule'] = json.dumps(old_schedule, ensure_ascii=False)
                     updated_count += 1
-            except: pass
+            except Exception as e:
+                print(f"Error parsing date: {e}")
+                pass
+
     return current_df, updated_count
 
 # --- 邏輯 C: 智慧放假 ---
