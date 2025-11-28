@@ -479,7 +479,7 @@ with tab1:
         leave_reasons = []
         
         for _, row in raw_df.iterrows():
-            # 🔴 重要修正：這裡傳入 row (整列資料)，而不是只傳 row['Schedule']
+            # 🔴 傳入 row
             status, reason, _, _ = get_person_status(row)
             if status == "leave":
                 leave_reasons.append(reason)
@@ -518,7 +518,6 @@ with tab1:
             st.markdown(f"<h3 style='color:#00FFC2; border-bottom:1px solid #333; padding-bottom:5px;'>{category}</h3>", unsafe_allow_html=True)
             cols = st.columns(3)
             for i, (idx, row) in enumerate(group_df.iterrows()):
-                # 🔴 重要修正：這裡也改為傳入 row
                 status_code, reason, status_text, curr_evt = get_person_status(row)
                 css_class = "status-leave" if status_code == "leave" else "status-camp"
                 
@@ -535,6 +534,31 @@ with tab1:
                     
                     with st.popover(f"管理 {row['Name']}"):
                         st.write(f"⚙️ **{row['Name']} 行程管理**")
+                        
+                        # ----------------------------------------------
+                        # 🔴 新增功能：顯示並管理 Line/手動 輸入的資料 (E/F/G欄)
+                        # ----------------------------------------------
+                        m_start = row.get('ManualStart')
+                        m_end = row.get('ManualEnd')
+                        m_reason = row.get('ManualReason')
+                        
+                        if pd.notna(m_start) and str(m_start).strip() != "":
+                            st.info("📱 **Line / 手動輸入資料**")
+                            st.write(f"**事由**: {m_reason}")
+                            st.write(f"**時間**: {m_start} ~ {m_end}")
+                            
+                            if st.button("🗑️ 刪除此筆 (Line)", key=f"del_man_{idx}"):
+                                # 清空 E, F, G 欄位
+                                raw_df.at[idx, 'ManualStart'] = ""
+                                raw_df.at[idx, 'ManualEnd'] = ""
+                                raw_df.at[idx, 'ManualReason'] = ""
+                                save_data(raw_df)
+                                st.rerun()
+                            st.divider()
+
+                        # ----------------------------------------------
+                        # 顯示 APP 排程 (D欄)
+                        # ----------------------------------------------
                         try:
                             schedule = json.loads(row['Schedule'])
                             if st.button("🧹 清除過期", key=f"cl_{idx}"):
@@ -543,7 +567,10 @@ with tab1:
                                 save_data(raw_df)
                                 st.rerun()
                             
-                            if not schedule: st.caption("目前無行程")
+                            # 如果沒有 Line 資料 也沒有 APP 資料
+                            if not schedule and (pd.isna(m_start) or str(m_start).strip() == ""):
+                                st.caption("目前無行程")
+                                
                             for s_idx, evt in enumerate(schedule):
                                 st.divider()
                                 s_t = datetime.datetime.fromisoformat(evt['start']).strftime('%m/%d %H:%M')
