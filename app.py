@@ -126,20 +126,19 @@ st.markdown("""
         color: #00FFC2 !important;
     }
 
-    /* 👇👇👇 修復：針對 Popover (管理選單) 按鈕的黑化處理 👇👇👇 */
+    /* Popover (管理選單) 按鈕的黑化處理 */
     [data-testid="stPopover"] > div > button {
-        background-color: transparent !important; /* 背景透明 */
-        border: 1px solid #444 !important;      /* 深灰色邊框 */
-        color: #666 !important;                 /* 文字深灰，不搶眼 */
-        font-size: 0.8rem !important;           /* 字體縮小一點 */
-        height: 2rem !important;                /* 高度縮小，更精緻 */
+        background-color: transparent !important;
+        border: 1px solid #444 !important;
+        color: #666 !important;
+        font-size: 0.8rem !important;
+        height: 2rem !important;
         transition: all 0.2s ease;
     }
-    /* 滑鼠移過去時的特效 */
     [data-testid="stPopover"] > div > button:hover {
-        border-color: #888 !important;          /* 邊框變亮 */
-        color: #FFF !important;                 /* 文字變白 */
-        background-color: #222 !important;      /* 背景微亮 */
+        border-color: #888 !important;
+        color: #FFF !important;
+        background-color: #222 !important;
     }
 
     /* 隱藏側邊欄收合按鈕的白底 */
@@ -159,7 +158,7 @@ if not check_password():
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 🟢 預設完整名單
+# 🟢 預設完整名單 (若要永久修改預設名單，請手動修改此處)
 DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
     {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
@@ -181,6 +180,10 @@ DEFAULT_ROSTER = [
     {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
     {"Category": "左班", "Name": "温亞縉", "Tag": "宿"},
     {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
+    # --- 新增人員 (左班) ---
+    {"Category": "左班", "Name": "邱威勝", "Tag": "散"},
+    {"Category": "左班", "Name": "奚智笙", "Tag": "宿"},
+    # ---------------------
     {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
     {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
     {"Category": "右班", "Name": "陳泰均", "Tag": "宿"},
@@ -217,7 +220,6 @@ def load_data():
         if df is None or df.empty or "Name" not in df.columns:
             df = pd.DataFrame(DEFAULT_ROSTER)
             df["Schedule"] = "[]"
-            # 確保有 Manual 欄位
             df["ManualStart"] = ""
             df["ManualEnd"] = ""
             df["ManualReason"] = ""
@@ -540,6 +542,17 @@ with tab1:
                     # 人員管理 Popover
                     with st.popover(f"管理 {row['Name']}"):
                         st.write(f"⚙️ **{row['Name']} 行程管理**")
+                        
+                        # --- ⚠️ 新增功能：移除人員 ---
+                        with st.expander("🛑 人員異動 (刪除)", expanded=False):
+                            st.warning(f"確定要將 {row['Name']} 從名單中移除嗎？此操作無法復原。")
+                            if st.button(f"❌ 確認移除 {row['Name']}", key=f"delete_person_{idx}", type="primary"):
+                                # 從原始資料中移除該列
+                                raw_df = raw_df.drop(index=idx)
+                                save_data(raw_df)
+                                st.rerun()
+                        st.divider()
+                        # --------------------------------------------------
                         
                         # A. Line/Manual 資料管理
                         m_start = row.get('ManualStart')
