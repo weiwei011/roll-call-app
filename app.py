@@ -109,7 +109,7 @@ st.markdown("""
         display: inline-block; margin-right: 8px; margin-bottom: 8px;
     }
     
-    /* 按鈕樣式優化 */
+    /* 一般按鈕樣式 */
     .stButton button { 
         background-color: #222 !important; 
         color: #EEE !important; 
@@ -125,6 +125,29 @@ st.markdown("""
         border-color: #00FFC2 !important;
         color: #00FFC2 !important;
     }
+
+    /* 👇👇👇 修復：針對 Popover (管理選單) 按鈕的黑化處理 👇👇👇 */
+    [data-testid="stPopover"] > div > button {
+        background-color: transparent !important; /* 背景透明 */
+        border: 1px solid #444 !important;      /* 深灰色邊框 */
+        color: #666 !important;                 /* 文字深灰，不搶眼 */
+        font-size: 0.8rem !important;           /* 字體縮小一點 */
+        height: 2rem !important;                /* 高度縮小，更精緻 */
+        transition: all 0.2s ease;
+    }
+    /* 滑鼠移過去時的特效 */
+    [data-testid="stPopover"] > div > button:hover {
+        border-color: #888 !important;          /* 邊框變亮 */
+        color: #FFF !important;                 /* 文字變白 */
+        background-color: #222 !important;      /* 背景微亮 */
+    }
+
+    /* 隱藏側邊欄收合按鈕的白底 */
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #111 !important; 
+        border: 1px solid #FF5F1F !important;
+        color: #FF5F1F !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -136,7 +159,7 @@ if not check_password():
 # ==========================================
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 🟢 預設完整名單 (當資料庫為空或格式錯誤時使用)
+# 🟢 預設完整名單
 DEFAULT_ROSTER = [
     {"Category": "官員", "Name": "魏俊丞", "Tag": "宿"},
     {"Category": "官員", "Name": "曾小容", "Tag": "宿"},
