@@ -169,7 +169,7 @@ DEFAULT_ROSTER = [
     {"Category": "左班", "Name": "劉正誼", "Tag": "宿"},
     {"Category": "左班", "Name": "林佳玄", "Tag": "散"},
     {"Category": "左班", "Name": "葉宗榮", "Tag": "宿"},
-    {"Category": "左班", "Name": "溫亞晉", "Tag": "宿"},
+    {"Category": "左班", "Name": "温亞縉", "Tag": "宿"},
     {"Category": "左班", "Name": "黃帷訓", "Tag": "宿"},
     {"Category": "右班", "Name": "徐偉閎", "Tag": "宿"},
     {"Category": "右班", "Name": "林松霆", "Tag": "宿"},
